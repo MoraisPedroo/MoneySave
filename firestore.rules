@@ -1,0 +1,36 @@
+rules_version = '2';
+
+// MoneySave — regras de segurança do Cloud Firestore.
+// Cada usuário autenticado só pode ler e gravar os próprios dados,
+// guardados em users/{uid} e nas subcoleções abaixo dele.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function allowedCollection(name) {
+      return name in ['accounts', 'cards', 'subscriptions', 'transactions', 'goals'];
+    }
+
+    // Perfil / preferências do usuário
+    match /users/{userId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && request.resource.data.size() < 40;
+
+      // Contas, cartões, assinaturas, lançamentos e objetivos
+      match /{collection}/{docId} {
+        allow read, delete: if isOwner(userId) && allowedCollection(collection);
+        allow create, update: if isOwner(userId)
+          && allowedCollection(collection)
+          && request.resource.data.size() < 60;
+      }
+    }
+
+    // Qualquer outro caminho fica bloqueado
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
