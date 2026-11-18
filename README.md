@@ -5,7 +5,7 @@ Organizador financeiro pessoal: cartões e assinaturas por banco, gastos do dia 
 para guardar por mês, semana e dia.
 
 Feito com **Next.js 16 + React 19 + Tailwind CSS v4**, dados no **Firebase** (login com Google + Cloud
-Firestore) e hospedado na **Vercel**.
+Firestore) e hospedado na **Vercel**: **https://moneysave-eosin.vercel.app**
 
 ## Funcionalidades
 
@@ -49,7 +49,8 @@ Projeto: `moneysave-ed79d`.
 2. **Firestore** (edição Standard, banco `(default)`, região `southamerica-east1`) com as regras de
    [`firestore.rules`](firestore.rules): cada usuário só lê/grava `users/{uid}/...`.
    Para publicar mudanças nas regras pela linha de comando: `npx firebase-tools deploy --only firestore:rules`.
-3. **Authentication › Configurações › Domínios autorizados**: inclua o domínio da Vercel (ex.: `moneysave.vercel.app`).
+3. **Authentication › Configurações › Domínios autorizados**: inclui `moneysave-eosin.vercel.app` (adicione aqui
+   qualquer domínio próprio que você ligar na Vercel, senão o login com Google é recusado nele).
 
 Estrutura no Firestore:
 
