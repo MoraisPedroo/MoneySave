@@ -147,6 +147,8 @@
   --animate-pet-blink: pet-blink 4.6s ease-in-out infinite;
   --animate-pet-coin: pet-coin 1.9s ease-in infinite;
   --animate-pet-sweep: pet-sweep 0.45s ease-in-out infinite alternate;
+  --animate-pet-talk: pet-talk 1.8s ease-in-out infinite;
+  --animate-pet-twinkle: pet-twinkle 1.4s ease-in-out infinite;
   --animate-pop-in: pop-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
 
   @keyframes pet-bob {
@@ -208,6 +210,29 @@
       transform: rotate(10deg);
     }
   }
+  @keyframes pet-talk {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0);
+    }
+    25% {
+      transform: translateY(-3px) rotate(-3deg);
+    }
+    75% {
+      transform: translateY(-3px) rotate(3deg);
+    }
+  }
+  @keyframes pet-twinkle {
+    0%,
+    100% {
+      transform: scale(0.6);
+      opacity: 0.2;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 1;
+    }
+  }
   @keyframes pop-in {
     0% {
       transform: scale(0.85) translateY(6px);
@@ -243,6 +268,16 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Nunca rolar para o lado no celular: nada passa da largura da tela.
+     (clip não cria área de rolagem, então o cabeçalho fixo continua funcionando) */
+  html,
+  body {
+    overflow-x: clip;
+    max-width: 100%;
   }
 
   body {

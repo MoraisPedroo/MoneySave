@@ -89,8 +89,8 @@ function Shell({ children }: { children: ReactNode }) {
 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65">
-          <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
-            <Link href="/" className="lg:hidden" aria-label="MoneySave — início">
+          <div className="mx-auto flex h-16 max-w-7xl items-center gap-1.5 px-3 min-[380px]:gap-2 min-[380px]:px-4 sm:gap-3 sm:px-6">
+            <Link href="/" className="shrink-0 max-[339px]:hidden lg:hidden" aria-label="MoneySave — início">
               <LogoMark size={34} />
             </Link>
             <div className="hidden min-w-0 flex-1 lg:block">
@@ -113,7 +113,7 @@ function Shell({ children }: { children: ReactNode }) {
           ) : null}
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 pt-4 pb-36 sm:px-6 sm:pt-6 lg:pb-12">
+        <main className="mx-auto w-full max-w-7xl min-w-0 px-3 pt-4 pb-36 min-[380px]:px-4 sm:px-6 sm:pt-6 lg:pb-12">
           <div className="mb-4 lg:hidden">
             <h1 className="text-2xl font-semibold tracking-tight">{meta.title}</h1>
             <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
@@ -214,12 +214,15 @@ function BottomNav({ pathname }: { pathname: string }) {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={cn("flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors", active && "text-primary")}
+              className={cn(
+                "flex min-w-0 flex-col items-center gap-1 py-2.5 text-[10px] font-medium text-muted-foreground transition-colors min-[380px]:text-[11px]",
+                active && "text-primary",
+              )}
             >
-              <span className={cn("flex h-7 w-12 items-center justify-center rounded-full transition-colors", active && "bg-accent")}>
+              <span className={cn("flex h-7 w-11 max-w-full items-center justify-center rounded-full transition-colors", active && "bg-accent")}>
                 <Icon className="size-5" />
               </span>
-              {item.short}
+              <span className="max-w-full truncate px-0.5">{item.short}</span>
             </Link>
           );
         })}
@@ -233,14 +236,14 @@ function MonthSwitcher() {
   if (!month) return null;
   const isCurrent = month === currentMonthKey();
   return (
-    <div className="flex items-center gap-1 rounded-xl border bg-card p-1 shadow-xs" data-tour="month">
-      <Button variant="ghost" size="icon-sm" onClick={() => setMonth(addMonthsKey(month, -1))} aria-label="Mês anterior">
+    <div className="flex min-w-0 items-center gap-0.5 rounded-xl border bg-card p-0.5 shadow-xs sm:gap-1 sm:p-1" data-tour="month">
+      <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setMonth(addMonthsKey(month, -1))} aria-label="Mês anterior">
         <ChevronLeft />
       </Button>
       <button
         type="button"
         onClick={() => setMonth(currentMonthKey())}
-        className="min-w-0 px-1 text-center text-sm font-semibold whitespace-nowrap"
+        className="min-w-0 truncate px-0.5 text-center text-[13px] font-semibold whitespace-nowrap sm:px-1 sm:text-sm"
         title="Voltar para o mês atual"
       >
         <span className="sm:hidden">
@@ -248,7 +251,7 @@ function MonthSwitcher() {
         </span>
         <span className="hidden sm:inline">{monthLabel(month)}</span>
       </button>
-      <Button variant="ghost" size="icon-sm" onClick={() => setMonth(addMonthsKey(month, 1))} aria-label="Próximo mês">
+      <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => setMonth(addMonthsKey(month, 1))} aria-label="Próximo mês">
         <ChevronRight />
       </Button>
       {!isCurrent ? (
@@ -268,7 +271,7 @@ function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(dark ? "light" : "dark")}
-      className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card text-foreground shadow-xs transition-colors outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card text-foreground shadow-xs transition-colors outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:size-10"
       aria-label={dark ? "Mudar para o modo claro" : "Mudar para o modo escuro"}
       title={dark ? "Modo claro" : "Modo escuro"}
       data-tour="theme-toggle"
@@ -294,10 +297,10 @@ function UserMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex size-10 shrink-0 items-center justify-center rounded-full border shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full border shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 sm:size-10"
           aria-label="Menu da conta"
         >
-          <Avatar user={user} size={38} />
+          <Avatar user={user} size={34} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-60">

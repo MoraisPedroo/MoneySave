@@ -90,7 +90,7 @@ export function GoalsView() {
         </div>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold tracking-tight">Seus objetivos</h2>
         <Button onClick={() => open({ type: "goal" })} data-tour="add-goal">
           <Plus /> Novo objetivo
@@ -178,12 +178,12 @@ function GoalCard({ goal, plan, free, tourTarget }: { goal: Goal; plan: GoalPlan
           </Button>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative shrink-0">
             <ProgressRing value={plan.progress} color={goal.color} />
             <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">{Math.round(plan.progress * 100)}%</span>
           </div>
-          <div className="grid flex-1 gap-1 text-sm">
+          <div className="grid min-w-[9.5rem] flex-1 gap-1 text-sm">
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">Guardado</span>
               <span className="money font-semibold">{formatBRL(goal.currentAmount)}</span>
@@ -240,12 +240,12 @@ function GoalCard({ goal, plan, free, tourTarget }: { goal: Goal; plan: GoalPlan
           </div>
         ) : null}
 
-        <div className="mt-auto flex gap-2">
-          <Button className="flex-1" onClick={() => open({ type: "deposit", goal })} style={{ backgroundColor: goal.color }}>
+        <div className="mt-auto flex flex-wrap gap-2">
+          <Button className="min-w-[7rem] flex-1" onClick={() => open({ type: "deposit", goal })} style={{ backgroundColor: goal.color }}>
             <Plus /> Guardar
           </Button>
           {!plan.done ? (
-            <Button variant="outline" onClick={() => setSimOpen((v) => !v)} aria-expanded={simOpen}>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setSimOpen((v) => !v)} aria-expanded={simOpen}>
               <Calculator /> Simular
             </Button>
           ) : null}

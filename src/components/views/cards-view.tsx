@@ -53,7 +53,7 @@ export function CardsView() {
       </div>
 
       <section className="grid gap-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Cartões de crédito</h2>
             <p className="text-sm text-muted-foreground">Toque no cartão para ver as faturas mês a mês.</p>
@@ -140,7 +140,7 @@ export function CardsView() {
       </section>
 
       <section className="grid gap-4" data-tour="accounts">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Contas e saldos</h2>
             <p className="text-sm text-muted-foreground">Contas correntes, poupança e carteiras digitais.</p>
