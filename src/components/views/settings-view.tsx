@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import { Cloud, Download, HardDrive, LogIn, LogOut, Monitor, Moon, Sparkles, Sun, Trash2, Upload } from "lucide-react";
+import { Cloud, Download, GraduationCap, LogOut, Monitor, Moon, RotateCcw, Sun, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useFinance } from "@/context/finance-context";
 import { useDialogs } from "@/context/dialogs-context";
+import { useTutorial } from "@/context/tutorial-context";
 import { buildBackup, parseBackup } from "@/lib/backup";
 import { INSTITUTION_COUNT } from "@/lib/banks";
 import { todayISO } from "@/lib/format";
@@ -14,9 +15,11 @@ import { initials } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, Segmented } from "@/components/ui/misc";
+import { Pet } from "@/components/pet/pet";
 
 export function SettingsView() {
-  const { mode, user, data, signIn, signOutUser, exitLocal, cloudAvailable, replaceAll, loadSample, localDataAvailable, importLocalToCloud } = useFinance();
+  const { user, data, signOutUser, replaceAll, profile, updateProfile } = useFinance();
+  const { start } = useTutorial();
   const { confirm } = useDialogs();
   const { theme, setTheme } = useTheme();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -67,70 +70,65 @@ export function SettingsView() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>Conta e sincronização</CardTitle>
-            <CardDescription>Onde seus dados ficam guardados</CardDescription>
+            <CardTitle>Conta</CardTitle>
+            <CardDescription>Seus dados ficam na nuvem, na sua conta Google</CardDescription>
           </div>
-          {mode === "cloud" ? (
-            <Badge variant="success">
-              <Cloud /> Nuvem
-            </Badge>
-          ) : (
-            <Badge variant="warning">
-              <HardDrive /> Local
-            </Badge>
-          )}
+          <Badge variant="success">
+            <Cloud /> Sincronizado
+          </Badge>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {mode === "cloud" && user ? (
-            <div className="flex items-center gap-3 rounded-xl border p-3">
-              <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent font-semibold text-accent-foreground">
-                {user.photoURL ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="size-full object-cover" />
-                ) : (
-                  initials(user.name)
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{user.name}</p>
-                <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-              </div>
+          <div className="flex items-center gap-3 rounded-xl border p-3">
+            <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent font-semibold text-accent-foreground">
+              {user?.photoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="size-full object-cover" />
+              ) : (
+                initials(user?.name ?? "?")
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{user?.name}</p>
+              <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
             </div>
-          ) : (
-            <p className="rounded-xl bg-warning-soft p-3 text-sm">
-              Você está no <strong>modo local</strong>: os dados ficam só neste navegador. Entre com o Google para guardar na nuvem e acessar
-              do celular.
-            </p>
-          )}
+          </div>
           <p className="text-sm text-muted-foreground">
-            {mode === "cloud"
-              ? "Seus dados ficam no Firebase (Cloud Firestore) e sincronizam em tempo real entre seus dispositivos. As regras de segurança garantem que só a sua conta tem acesso."
-              : "Ao entrar com o Google, você pode enviar estes dados para a sua conta."}
+            Tudo fica no Firebase (Cloud Firestore) e sincroniza em tempo real entre celular e computador. As regras de segurança garantem que só a
+            sua conta tem acesso.
+          </p>
+          <Button variant="outline" className="justify-self-start" onClick={() => void signOutUser()}>
+            <LogOut /> Sair da conta
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card data-tour="settings-tutorial">
+        <CardHeader>
+          <div>
+            <CardTitle>Tutorial e assistente</CardTitle>
+            <CardDescription>Reveja como o MoneySave funciona quando quiser</CardDescription>
+          </div>
+          <Pet size={46} />
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <p className="text-sm text-muted-foreground">
+            O tutorial usa <strong>dados de exemplo</strong> só na tela — seus dados não são alterados e voltam ao final.
           </p>
           <div className="flex flex-wrap gap-2">
-            {mode === "cloud" ? (
-              <>
-                {localDataAvailable ? (
-                  <Button variant="soft" onClick={() => void importLocalToCloud()}>
-                    <Upload /> Enviar dados do modo local
-                  </Button>
-                ) : null}
-                <Button variant="outline" onClick={() => void signOutUser()}>
-                  <LogOut /> Sair da conta
-                </Button>
-              </>
-            ) : (
-              <>
-                {cloudAvailable ? (
-                  <Button onClick={() => void signIn()}>
-                    <LogIn /> Entrar com Google
-                  </Button>
-                ) : null}
-                <Button variant="outline" onClick={exitLocal}>
-                  <LogOut /> Sair do modo local
-                </Button>
-              </>
-            )}
+            <Button onClick={start}>
+              <GraduationCap /> Refazer tutorial
+            </Button>
+            {profile.onboardingDone ? (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  updateProfile({ onboardingDone: false, skippedSteps: [] });
+                  toast.success("O Poupinho e o checklist voltaram para a tela inicial.");
+                }}
+              >
+                <RotateCcw /> Mostrar o checklist de novo
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -176,10 +174,10 @@ export function SettingsView() {
         <CardHeader>
           <div>
             <CardTitle>Aparência</CardTitle>
-            <CardDescription>Tema claro, escuro ou automático</CardDescription>
+            <CardDescription>Também dá para trocar no botão de sol/lua lá em cima</CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-5">
           <Segmented<ThemePreference>
             value={theme}
             onChange={setTheme}
@@ -189,54 +187,28 @@ export function SettingsView() {
               { value: "system", label: "Auto", icon: <Monitor /> },
             ]}
           />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>Dados</CardTitle>
-            <CardDescription>Exemplo para explorar ou começar do zero</CardDescription>
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium">Zona de perigo</p>
+            <p className="mb-3 text-xs text-muted-foreground">Apaga todos os seus dados da nuvem. Não dá para desfazer.</p>
+            <Button
+              variant="destructive-ghost"
+              disabled={total === 0}
+              onClick={() =>
+                confirm({
+                  title: "Apagar todos os dados?",
+                  description: `Isso remove ${total} registro(s) da sua conta na nuvem e não pode ser desfeito. Exporte um backup antes, se quiser guardar.`,
+                  confirmLabel: "Apagar tudo",
+                  destructive: true,
+                  onConfirm: async () => {
+                    const ok = await replaceAll(EMPTY_DATA);
+                    if (ok) toast.success("Todos os dados foram apagados.");
+                  },
+                })
+              }
+            >
+              <Trash2 /> Apagar todos os dados
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button
-            variant="soft"
-            onClick={() =>
-              confirm({
-                title: "Substituir pelos dados de exemplo?",
-                description: total
-                  ? `Os ${total} registro(s) atuais serão apagados e trocados por exemplos (Nubank, Inter, PicPay e Sicoob). Faça um backup antes, se quiser.`
-                  : "Vamos preencher com contas, cartões, assinaturas, lançamentos e metas de exemplo.",
-                confirmLabel: "Carregar exemplo",
-                destructive: total > 0,
-                onConfirm: async () => {
-                  const ok = await loadSample();
-                  if (ok) toast.success("Dados de exemplo carregados!");
-                },
-              })
-            }
-          >
-            <Sparkles /> Carregar dados de exemplo
-          </Button>
-          <Button
-            variant="destructive-ghost"
-            disabled={total === 0}
-            onClick={() =>
-              confirm({
-                title: "Apagar todos os dados?",
-                description: `Isso remove ${total} registro(s) ${mode === "cloud" ? "da sua conta na nuvem" : "deste navegador"} e não pode ser desfeito. Exporte um backup antes, se quiser guardar.`,
-                confirmLabel: "Apagar tudo",
-                destructive: true,
-                onConfirm: async () => {
-                  const ok = await replaceAll(EMPTY_DATA);
-                  if (ok) toast.success("Todos os dados foram apagados.");
-                },
-              })
-            }
-          >
-            <Trash2 /> Apagar todos os dados
-          </Button>
         </CardContent>
       </Card>
 

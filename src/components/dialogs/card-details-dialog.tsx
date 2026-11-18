@@ -63,7 +63,7 @@ export function CardDetailsDialog({ cardId, onClose }: { cardId: string; onClose
             </div>
           </div>
 
-          <div className="scrollbar-none -mx-1 flex min-h-max gap-2 overflow-x-auto px-1 pb-1">
+          <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
             {upcoming.map((inv) => (
               <button
                 key={inv.dueMonth}

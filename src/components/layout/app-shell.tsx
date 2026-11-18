@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Cloud,
   CreditCard,
-  HardDrive,
   LayoutDashboard,
-  LogIn,
   LogOut,
   Monitor,
   Moon,
@@ -20,9 +18,8 @@ import {
   Settings,
   Sun,
   Target,
-  Upload,
 } from "lucide-react";
-import { useFinance } from "@/context/finance-context";
+import { useFinance, type FinanceUser } from "@/context/finance-context";
 import { useDialogs } from "@/context/dialogs-context";
 import { addMonthsKey, currentMonthKey, monthLabel, monthName } from "@/lib/format";
 import { useTheme, type ThemePreference } from "@/lib/theme";
@@ -37,6 +34,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/misc";
 import { DialogsHost } from "@/components/dialogs/dialogs-host";
+import { PetGuide } from "@/components/pet/pet-guide";
+import { TutorialLayer } from "@/components/tutorial/tutorial-layer";
 import { Logo, LogoMark } from "./brand";
 import { LoginScreen } from "./login-screen";
 
@@ -55,7 +54,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/cartoes": { title: "Cartões e contas", subtitle: "Limites, faturas, vencimentos e saldos de cada banco." },
   "/assinaturas": { title: "Radar de assinaturas", subtitle: "Tudo o que é cobrado todo mês nos seus cartões." },
   "/objetivos": { title: "Objetivos", subtitle: "Quanto guardar por mês, semana e dia para chegar lá." },
-  "/ajustes": { title: "Ajustes", subtitle: "Conta, sincronização, backup e aparência." },
+  "/ajustes": { title: "Ajustes", subtitle: "Conta, tutorial, backup e aparência." },
 };
 
 function isActive(pathname: string, href: string) {
@@ -81,6 +80,7 @@ function Splash() {
 function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { open } = useDialogs();
+  const { sandbox } = useFinance();
   const meta = PAGE_META[pathname] ?? PAGE_META["/"];
 
   return (
@@ -89,7 +89,7 @@ function Shell({ children }: { children: ReactNode }) {
 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65">
-          <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+          <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
             <Link href="/" className="lg:hidden" aria-label="MoneySave — início">
               <LogoMark size={34} />
             </Link>
@@ -100,19 +100,24 @@ function Shell({ children }: { children: ReactNode }) {
             <div className="flex min-w-0 flex-1 justify-center lg:flex-none">
               <MonthSwitcher />
             </div>
-            <Button className="hidden sm:inline-flex" onClick={() => open({ type: "transaction" })}>
+            <Button className="hidden sm:inline-flex" onClick={() => open({ type: "transaction" })} data-tour="new-transaction">
               <Plus /> Novo lançamento
             </Button>
+            <ThemeToggle />
             <UserMenu />
           </div>
+          {sandbox ? (
+            <div className="border-t border-primary/20 bg-accent px-4 py-1.5 text-center text-xs font-medium text-accent-foreground">
+              Modo tutorial · você está vendo dados de exemplo
+            </div>
+          ) : null}
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 pt-4 pb-32 sm:px-6 sm:pt-6 lg:pb-12">
+        <main className="mx-auto max-w-7xl px-4 pt-4 pb-36 sm:px-6 sm:pt-6 lg:pb-12">
           <div className="mb-4 lg:hidden">
             <h1 className="text-2xl font-semibold tracking-tight">{meta.title}</h1>
             <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
           </div>
-          <LocalImportBanner />
           {children}
         </main>
       </div>
@@ -124,17 +129,36 @@ function Shell({ children }: { children: ReactNode }) {
         className="fixed right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 size-14 rounded-2xl shadow-xl shadow-primary/30 sm:hidden"
         onClick={() => open({ type: "transaction" })}
         aria-label="Novo lançamento"
+        data-tour="new-transaction"
       >
         <Plus className="size-6" />
       </Button>
 
       <DialogsHost />
+      <PetGuide />
+      <TutorialLayer />
     </div>
   );
 }
 
+function Avatar({ user, size = 40 }: { user: FinanceUser | null; size?: number }) {
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-accent-foreground"
+      style={{ width: size, height: size }}
+    >
+      {user?.photoURL ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="size-full object-cover" />
+      ) : (
+        initials(user?.name ?? "?")
+      )}
+    </span>
+  );
+}
+
 function Sidebar({ pathname }: { pathname: string }) {
-  const { mode, user, signIn, cloudAvailable } = useFinance();
+  const { user } = useFinance();
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r bg-sidebar lg:flex">
       <div className="flex h-16 items-center px-5">
@@ -164,35 +188,14 @@ function Sidebar({ pathname }: { pathname: string }) {
         })}
       </nav>
       <div className="p-3">
-        <div className="rounded-2xl border bg-card p-3">
-          {mode === "cloud" ? (
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-success-soft text-success">
-                <Cloud className="size-4" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold">Sincronizado na nuvem</p>
-                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <span className="flex size-8 items-center justify-center rounded-lg bg-warning-soft text-warning">
-                  <HardDrive className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold">Modo local</p>
-                  <p className="text-xs text-muted-foreground">Dados só neste navegador</p>
-                </div>
-              </div>
-              {cloudAvailable ? (
-                <Button size="sm" variant="outline" onClick={() => void signIn()}>
-                  <LogIn /> Entrar com Google
-                </Button>
-              ) : null}
-            </div>
-          )}
+        <div className="flex items-center gap-2.5 rounded-2xl border bg-card p-3">
+          <Avatar user={user} size={36} />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{user?.name}</p>
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Cloud className="size-3 text-success" /> Sincronizado
+            </p>
+          </div>
         </div>
       </div>
     </aside>
@@ -201,10 +204,7 @@ function Sidebar({ pathname }: { pathname: string }) {
 
 function BottomNav({ pathname }: { pathname: string }) {
   return (
-    <nav
-      className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 backdrop-blur-xl lg:hidden"
-      aria-label="Navegação"
-    >
+    <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 backdrop-blur-xl lg:hidden" aria-label="Navegação">
       <div className="mx-auto grid max-w-lg grid-cols-5">
         {NAV.slice(0, 5).map((item) => {
           const active = isActive(pathname, item.href);
@@ -214,10 +214,7 @@ function BottomNav({ pathname }: { pathname: string }) {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors",
-                active && "text-primary",
-              )}
+              className={cn("flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-muted-foreground transition-colors", active && "text-primary")}
             >
               <span className={cn("flex h-7 w-12 items-center justify-center rounded-full transition-colors", active && "bg-accent")}>
                 <Icon className="size-5" />
@@ -236,7 +233,7 @@ function MonthSwitcher() {
   if (!month) return null;
   const isCurrent = month === currentMonthKey();
   return (
-    <div className="flex items-center gap-1 rounded-xl border bg-card p-1 shadow-xs">
+    <div className="flex items-center gap-1 rounded-xl border bg-card p-1 shadow-xs" data-tour="month">
       <Button variant="ghost" size="icon-sm" onClick={() => setMonth(addMonthsKey(month, -1))} aria-label="Mês anterior">
         <ChevronLeft />
       </Button>
@@ -255,7 +252,7 @@ function MonthSwitcher() {
         <ChevronRight />
       </Button>
       {!isCurrent ? (
-        <Button variant="soft" size="sm" className="h-7 px-2" onClick={() => setMonth(currentMonthKey())}>
+        <Button variant="soft" size="sm" className="hidden h-7 px-2 sm:inline-flex" onClick={() => setMonth(currentMonthKey())}>
           Hoje
         </Button>
       ) : null}
@@ -263,56 +260,61 @@ function MonthSwitcher() {
   );
 }
 
+/** Um clique troca entre claro e escuro. */
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const dark = resolvedTheme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card text-foreground shadow-xs transition-colors outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      aria-label={dark ? "Mudar para o modo claro" : "Mudar para o modo escuro"}
+      title={dark ? "Modo claro" : "Modo escuro"}
+      data-tour="theme-toggle"
+    >
+      <Sun className={cn("absolute size-[18px] text-amber-500 transition-all duration-300", dark ? "scale-100 rotate-0" : "scale-0 -rotate-90")} />
+      <Moon className={cn("absolute size-[18px] text-indigo-500 transition-all duration-300", dark ? "scale-0 rotate-90" : "scale-100 rotate-0")} />
+    </button>
+  );
+}
+
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
   { value: "light", label: "Claro", icon: Sun },
   { value: "dark", label: "Escuro", icon: Moon },
-  { value: "system", label: "Automático", icon: Monitor },
+  { value: "system", label: "Auto", icon: Monitor },
 ];
 
 function UserMenu() {
-  const { mode, user, signIn, signOutUser, exitLocal, cloudAvailable } = useFinance();
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const ThemeIcon = resolvedTheme === "dark" ? Moon : Sun;
+  const { user, signOutUser } = useFinance();
+  const { theme, setTheme } = useTheme();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-card text-sm font-semibold shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full border shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           aria-label="Menu da conta"
         >
-          {mode === "cloud" && user?.photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="size-full object-cover" />
-          ) : mode === "cloud" && user ? (
-            initials(user.name)
-          ) : (
-            <HardDrive className="size-4 text-muted-foreground" />
-          )}
+          <Avatar user={user} size={38} />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-60">
         <DropdownMenuLabel>
-          {mode === "cloud" && user ? (
-            <span className="grid">
-              <span className="truncate text-sm font-semibold text-foreground">{user.name}</span>
-              <span className="truncate">{user.email}</span>
-            </span>
-          ) : (
-            "Modo local — dados neste navegador"
-          )}
+          <span className="grid">
+            <span className="truncate text-sm font-semibold text-foreground">{user?.name}</span>
+            <span className="truncate">{user?.email}</span>
+          </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/ajustes">
-            <Settings /> Ajustes e backup
+            <Settings /> Ajustes, tutorial e backup
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="flex items-center gap-2">
-          <ThemeIcon className="size-3.5" /> Tema
-        </DropdownMenuLabel>
+        <DropdownMenuLabel>Tema</DropdownMenuLabel>
         <div className="grid grid-cols-3 gap-1 px-1 pb-1">
           {THEME_OPTIONS.map((option) => {
             const Icon = option.icon;
@@ -333,46 +335,10 @@ function UserMenu() {
           })}
         </div>
         <DropdownMenuSeparator />
-        {mode === "cloud" ? (
-          <DropdownMenuItem destructive onSelect={() => void signOutUser()}>
-            <LogOut /> Sair da conta
-          </DropdownMenuItem>
-        ) : (
-          <>
-            {cloudAvailable ? (
-              <DropdownMenuItem onSelect={() => void signIn()}>
-                <LogIn /> Entrar com Google
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem onSelect={() => exitLocal()}>
-              <LogOut /> Sair do modo local
-            </DropdownMenuItem>
-          </>
-        )}
+        <DropdownMenuItem destructive onSelect={() => void signOutUser()}>
+          <LogOut /> Sair da conta
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function LocalImportBanner() {
-  const { mode, localDataAvailable, importLocalToCloud } = useFinance();
-  const [dismissed, setDismissed] = useState(false);
-  if (mode !== "cloud" || !localDataAvailable || dismissed) return null;
-  return (
-    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-accent/60 p-4 sm:flex-row sm:items-center">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <Upload className="size-5" />
-      </span>
-      <div className="flex-1">
-        <p className="font-semibold">Você tem dados do modo local neste navegador</p>
-        <p className="text-sm text-muted-foreground">Envie para a sua conta e acesse no celular e no computador.</p>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="ghost" onClick={() => setDismissed(true)}>
-          Agora não
-        </Button>
-        <Button onClick={() => void importLocalToCloud()}>Enviar para a nuvem</Button>
-      </div>
-    </div>
   );
 }

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { FinanceProvider } from "@/context/finance-context";
 import { DialogsProvider } from "@/context/dialogs-context";
+import { TutorialProvider } from "@/context/tutorial-context";
 import { AppShell } from "@/components/layout/app-shell";
 import { AppToaster } from "@/components/layout/app-toaster";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
@@ -48,7 +49,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-dvh font-sans">
         <FinanceProvider>
           <DialogsProvider>
-            <AppShell>{children}</AppShell>
+            <TutorialProvider>
+              <AppShell>{children}</AppShell>
+            </TutorialProvider>
           </DialogsProvider>
         </FinanceProvider>
         <AppToaster />

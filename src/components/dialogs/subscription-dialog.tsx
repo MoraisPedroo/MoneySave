@@ -12,13 +12,24 @@ import { SERVICE_PRESETS, guessService } from "@/lib/services";
 import type { BillingCycle, Subscription } from "@/lib/types";
 import { cn, readableOn, uid } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogColumn,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import { CategorySelect } from "@/components/ui/category-select";
 import { Segmented, Switch } from "@/components/ui/misc";
 import { BankLogo } from "@/components/bank/bank-logo";
 
 const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
+const chip = "inline-flex max-w-full items-center gap-2 rounded-xl border px-2.5 py-1.5 text-sm transition-colors hover:bg-muted";
 
 export function SubscriptionDialog({ subscription, onClose }: { subscription?: Subscription; onClose: () => void }) {
   const { data, save, remove, today } = useFinance();
@@ -98,15 +109,16 @@ export function SubscriptionDialog({ subscription, onClose }: { subscription?: S
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar assinatura" : "Nova assinatura"}</DialogTitle>
           <DialogDescription>Streaming, apps, academia, clubes… tudo o que é cobrado automaticamente.</DialogDescription>
         </DialogHeader>
-        <DialogBody>
+        <DialogBody className="md:grid-cols-2 md:gap-x-6">
           {!editing ? (
-            <Field label="Atalhos">
-              <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+            <div className="grid gap-1.5 md:col-span-2">
+              <span className="text-[13px] font-medium text-muted-foreground">Atalhos</span>
+              <div className="scrollbar-none -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
                 {SERVICE_PRESETS.map((service) => (
                   <button
                     key={service.slug}
@@ -123,10 +135,10 @@ export function SubscriptionDialog({ subscription, onClose }: { subscription?: S
                   </button>
                 ))}
               </div>
-            </Field>
+            </div>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-[1fr_11rem]">
+          <DialogColumn>
             <Field label="Nome" htmlFor="sub-name">
               <Input
                 id="sub-name"
@@ -142,108 +154,98 @@ export function SubscriptionDialog({ subscription, onClose }: { subscription?: S
             <Field label="Valor por cobrança">
               <MoneyInput value={amount} onChange={setAmount} />
             </Field>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Ciclo">
-              <NativeSelect value={billingCycle} onChange={(e) => setBillingCycle(e.target.value as BillingCycle)}>
-                {Object.entries(CYCLE_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Dia da cobrança">
-              <NativeSelect value={billingDay} onChange={(e) => setBillingDay(Number(e.target.value))}>
-                {DAYS.map((d) => (
-                  <option key={d} value={d}>
-                    Dia {d}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label={billingCycle === "mensal" ? "Assinante desde" : "Próxima/1ª cobrança"} htmlFor="sub-start">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Ciclo">
+                <NativeSelect value={billingCycle} onChange={(e) => setBillingCycle(e.target.value as BillingCycle)}>
+                  {Object.entries(CYCLE_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field label="Dia da cobrança">
+                <NativeSelect value={billingDay} onChange={(e) => setBillingDay(Number(e.target.value))}>
+                  {DAYS.map((d) => (
+                    <option key={d} value={d}>
+                      Dia {d}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            </div>
+            <Field
+              label={billingCycle === "mensal" ? "Assinante desde" : "Data da 1ª cobrança"}
+              htmlFor="sub-start"
+              hint={
+                billingCycle !== "mensal" && amount > 0
+                  ? `Equivale a ${formatBRL(monthlyEquivalent({ amount, billingCycle }))}/mês no seu orçamento.`
+                  : undefined
+              }
+            >
               <Input id="sub-start" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value || today)} />
             </Field>
-          </div>
+          </DialogColumn>
 
-          {billingCycle !== "mensal" && amount > 0 ? (
-            <p className="-mt-2 text-xs text-muted-foreground">
-              Equivale a <strong>{formatBRL(monthlyEquivalent({ amount, billingCycle }))}/mês</strong> no seu orçamento.
-            </p>
-          ) : null}
-
-          <Field label="Categoria">
-            <NativeSelect value={category} onChange={(e) => setCategory(e.target.value)}>
-              {SUBSCRIPTION_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-
-          <Field label="Cobrada em">
-            <Segmented
-              value={paymentMethod}
-              onChange={setPaymentMethod}
-              options={[
-                { value: "cartao", label: "Cartão de crédito", icon: <CreditCard /> },
-                { value: "pix_debito", label: "Conta / débito", icon: <Landmark /> },
-              ]}
-            />
-          </Field>
-
-          {paymentMethod === "cartao" ? (
-            data.cards.length ? (
+          <DialogColumn>
+            <Field label="Categoria" htmlFor="sub-category">
+              <CategorySelect id="sub-category" value={category} onChange={setCategory} categories={SUBSCRIPTION_CATEGORIES} />
+            </Field>
+            <Field label="Cobrada em">
+              <Segmented
+                value={paymentMethod}
+                onChange={setPaymentMethod}
+                options={[
+                  { value: "cartao", label: "Cartão de crédito", icon: <CreditCard /> },
+                  { value: "pix_debito", label: "Conta / débito", icon: <Landmark /> },
+                ]}
+              />
+            </Field>
+            {paymentMethod === "cartao" ? (
+              data.cards.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {data.cards.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCardId(c.id)}
+                      aria-pressed={c.id === cardId}
+                      className={cn(chip, c.id === cardId && "border-primary bg-accent font-medium")}
+                    >
+                      <BankLogo slug={c.bankSlug} size={22} />
+                      <span className="truncate">{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Cadastre um cartão em Cartões e contas para vincular.</p>
+              )
+            ) : data.accounts.length ? (
               <div className="flex flex-wrap gap-1.5">
-                {data.cards.map((c) => (
+                {data.accounts.map((a) => (
                   <button
-                    key={c.id}
+                    key={a.id}
                     type="button"
-                    onClick={() => setCardId(c.id)}
-                    aria-pressed={c.id === cardId}
-                    className={cn(
-                      "inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-sm transition-colors hover:bg-muted",
-                      c.id === cardId && "border-primary bg-accent font-medium",
-                    )}
+                    onClick={() => setAccountId(a.id)}
+                    aria-pressed={a.id === accountId}
+                    className={cn(chip, a.id === accountId && "border-primary bg-accent font-medium")}
                   >
-                    <BankLogo slug={c.bankSlug} size={22} />
-                    {c.name}
+                    <BankLogo slug={a.bankSlug} size={22} />
+                    <span className="truncate">{a.name}</span>
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Cadastre um cartão em Cartões e contas para vincular.</p>
-            )
-          ) : data.accounts.length ? (
-            <div className="flex flex-wrap gap-1.5">
-              {data.accounts.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => setAccountId(a.id)}
-                  aria-pressed={a.id === accountId}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-sm transition-colors hover:bg-muted",
-                    a.id === accountId && "border-primary bg-accent font-medium",
-                  )}
-                >
-                  <BankLogo slug={a.bankSlug} size={22} />
-                  {a.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <label className="flex items-center justify-between gap-3 rounded-xl border p-3">
-            <span>
-              <span className="block text-sm font-medium">Assinatura ativa</span>
-              <span className="block text-xs text-muted-foreground">Desative quando cancelar o serviço (o histórico fica salvo).</span>
-            </span>
-            <Switch checked={active} onCheckedChange={setActive} />
-          </label>
+              <p className="text-sm text-muted-foreground">Cadastre uma conta em Cartões e contas para vincular.</p>
+            )}
+            <label className="flex items-center justify-between gap-3 rounded-xl border p-3">
+              <span>
+                <span className="block text-sm font-medium">Assinatura ativa</span>
+                <span className="block text-xs text-muted-foreground">Desative quando cancelar (o histórico fica salvo).</span>
+              </span>
+              <Switch checked={active} onCheckedChange={setActive} />
+            </label>
+          </DialogColumn>
         </DialogBody>
         <DialogFooter>
           {editing ? (

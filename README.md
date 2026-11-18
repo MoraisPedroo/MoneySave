@@ -22,7 +22,7 @@ Firestore) e hospedado na **Vercel**: **https://moneysave-eosin.vercel.app**
 - **Bancos brasileiros** — Nubank, Inter, PicPay, Sicoob, Itaú, Bradesco, Santander, C6, BB, Caixa, Mercado Pago e
   outros 30 com símbolo vetorial oficial, além de 623 instituições do Banco Central com logo.
 - **Modo escuro**, layout para celular (barra inferior + botão "+"), instalável na tela inicial,
-  **modo local** sem conta e **backup/restauração em JSON**.
+  **backup/restauração em JSON**, tutorial guiado com o assistente Poupinho e checklist de primeiros passos.
 
 ## Rodando localmente
 
@@ -32,7 +32,7 @@ cp .env.example .env.local   # preencha com a config do app Web do Firebase
 npm run dev                  # http://localhost:3000
 ```
 
-Sem as variáveis do Firebase o app funciona só no **modo local** (dados no navegador).
+Em `npm run dev` há um botão "Entrar como teste" (dados só em memória) para testar sem conta Google.
 
 Antes de publicar:
 

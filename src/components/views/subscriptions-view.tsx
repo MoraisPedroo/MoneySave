@@ -85,7 +85,7 @@ export function SubscriptionsView() {
       </div>
 
       {cuts.size > 0 ? (
-        <div className="flex flex-col gap-4 rounded-2xl border border-primary/30 bg-accent/60 p-4 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-4 rounded-2xl border border-primary/30 bg-accent/60 p-4 sm:flex-row sm:items-center" data-tour="cut-banner">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Scissors className="size-5" />
           </span>
@@ -149,7 +149,7 @@ export function SubscriptionsView() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden" data-tour="sub-list">
             <CardHeader className="border-b pb-4">
               <div>
                 <CardTitle>Assinaturas ativas</CardTitle>

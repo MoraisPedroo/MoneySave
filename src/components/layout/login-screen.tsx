@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { ChartPie, CircleCheck, HardDrive, Lock, Repeat, Sparkles, Target, TrendingUp } from "lucide-react";
+import { ChartPie, FlaskConical, Lock, Repeat, Smartphone, Sparkles, Target, TrendingUp } from "lucide-react";
 import { useFinance } from "@/context/finance-context";
 import { Button } from "@/components/ui/button";
 import { BankLogo } from "@/components/bank/bank-logo";
+import { Pet } from "@/components/pet/pet";
 import { Logo } from "./brand";
 
 const FEATURES = [
-  { icon: TrendingUp, title: "Quanto sobra no mês", text: "Receitas menos gastos, contas, cartões e assinaturas — com alerta quando ficar no vermelho." },
-  { icon: Repeat, title: "Radar de assinaturas", text: "Veja quanto cada cartão gasta com assinaturas e simule cancelamentos na hora." },
-  { icon: Target, title: "Objetivos com valor certo", text: "Diga a meta e a data: o MoneySave calcula quanto guardar por mês, semana e dia." },
-  { icon: ChartPie, title: "Tudo por banco", text: "Nubank, Inter, PicPay, Sicoob e mais de 600 instituições com as logos oficiais." },
+  { icon: TrendingUp, title: "Quanto sobra no mês", text: "Com alerta quando ficar no vermelho." },
+  { icon: Repeat, title: "Radar de assinaturas", text: "Simule cancelamentos na hora." },
+  { icon: Target, title: "Objetivos com valor certo", text: "Quanto guardar por mês, semana e dia." },
+  { icon: ChartPie, title: "Tudo por banco", text: "Logos oficiais de 600+ instituições." },
 ];
 
 const BANKS = ["nubank", "inter", "picpay", "sicoob", "itau", "bradesco", "santander", "c6", "bancodobrasil", "caixa", "mercadopago"];
@@ -28,7 +29,7 @@ function GoogleIcon() {
 }
 
 export function LoginScreen() {
-  const { signIn, startLocal, cloudAvailable, localDataAvailable } = useFinance();
+  const { signIn, cloudAvailable, devLoginAvailable, devLogin } = useFinance();
   const [busy, setBusy] = useState(false);
 
   const handleGoogle = async () => {
@@ -41,30 +42,32 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-dvh bg-app-glow lg:grid lg:grid-cols-[1.1fr_1fr]">
-      {/* Painel de apresentação */}
-      <section className="relative hidden overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-12 text-white lg:flex lg:flex-col lg:justify-between">
+    <div className="grid h-dvh overflow-hidden bg-app-glow lg:grid-cols-[1.1fr_1fr]">
+      {/* Apresentação (computador) */}
+      <section className="relative hidden min-h-0 overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white lg:flex lg:flex-col lg:justify-between lg:gap-6 lg:p-10 xl:p-12">
         <div className="pointer-events-none absolute -top-32 -right-24 size-[28rem] rounded-full bg-white/10" />
         <div className="pointer-events-none absolute -bottom-40 -left-24 size-[26rem] rounded-full bg-black/10" />
         <Logo className="relative [&_span.text-primary]:text-emerald-100" />
         <div className="relative max-w-xl">
-          <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-medium">
+          <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-sm font-medium">
             <Sparkles className="size-4" /> Organize sua vida financeira
           </p>
-          <h1 className="text-4xl leading-tight font-bold tracking-tight xl:text-5xl">
+          <h1 className="text-[2.6rem] leading-[1.08] font-bold tracking-tight xl:text-5xl [@media(max-height:720px)]:text-4xl">
             Cartões, assinaturas e metas em um só lugar.
           </h1>
-          <p className="mt-4 text-lg text-emerald-50/90">
+          <p className="mt-3 text-base text-emerald-50/90 xl:text-lg [@media(max-height:720px)]:text-sm">
             Lance seus gastos do dia, veja quanto sobra no fim do mês e descubra quanto guardar para cada objetivo.
           </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-2 gap-3 [@media(max-height:720px)]:mt-4 [@media(max-height:720px)]:gap-2">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
-                  <Icon className="mb-2 size-5" />
-                  <p className="font-semibold">{feature.title}</p>
-                  <p className="mt-1 text-sm text-emerald-50/85">{feature.text}</p>
+                <div key={feature.title} className="flex items-start gap-2.5 rounded-2xl bg-white/10 p-3 backdrop-blur-sm">
+                  <Icon className="mt-0.5 size-5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{feature.title}</p>
+                    <p className="text-xs text-emerald-50/85">{feature.text}</p>
+                  </div>
                 </div>
               );
             })}
@@ -72,21 +75,27 @@ export function LoginScreen() {
         </div>
         <div className="relative flex flex-wrap gap-2">
           {BANKS.map((slug) => (
-            <BankLogo key={slug} slug={slug} size={36} className="shadow-md shadow-black/20" />
+            <BankLogo key={slug} slug={slug} size={34} className="shadow-md shadow-black/20" />
           ))}
         </div>
       </section>
 
       {/* Entrada */}
-      <section className="flex min-h-dvh flex-col justify-center px-5 py-10 sm:px-10 lg:min-h-0">
-        <div className="mx-auto w-full max-w-md">
-          <Logo className="mb-8 lg:hidden" size={40} />
-          <h2 className="text-3xl font-bold tracking-tight">Bem-vindo ao MoneySave</h2>
+      <section className="flex min-h-0 flex-col justify-center overflow-y-auto px-6 py-6 sm:px-10">
+        <div className="mx-auto w-full max-w-sm">
+          <Logo className="mb-6 lg:hidden" size={38} />
+          <div className="flex items-end gap-3">
+            <Pet size={72} mood="talk" />
+            <div className="relative mb-3 rounded-2xl rounded-bl-sm border bg-popover px-3.5 py-2.5 text-sm shadow-sm">
+              Oi! Eu sou o <strong>Poupinho</strong>. Vamos organizar seu dinheiro? 🐷
+            </div>
+          </div>
+          <h2 className="mt-5 text-3xl font-bold tracking-tight">Bem-vindo ao MoneySave</h2>
           <p className="mt-2 text-muted-foreground">
-            Entre para guardar seus dados com segurança na nuvem e acessar do celular e do computador.
+            Entre com sua conta Google para começar. Seus dados ficam guardados com segurança e sincronizam no celular e no computador.
           </p>
 
-          <div className="mt-8 grid gap-3">
+          <div className="mt-6 grid gap-2">
             {cloudAvailable ? (
               <Button size="lg" variant="outline" className="h-13 text-base shadow-sm" onClick={handleGoogle} disabled={busy}>
                 <GoogleIcon />
@@ -97,41 +106,27 @@ export function LoginScreen() {
                 O login com Google aparece aqui quando as chaves do Firebase estiverem configuradas.
               </p>
             )}
-
-            <div className="my-2 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" /> ou experimente sem conta <span className="h-px flex-1 bg-border" />
-            </div>
-
-            {localDataAvailable ? (
-              <Button size="lg" variant="soft" onClick={() => startLocal(false)}>
-                <HardDrive /> Continuar no modo local
+            {devLoginAvailable ? (
+              <Button variant="ghost" size="sm" onClick={devLogin} className="text-muted-foreground">
+                <FlaskConical /> Entrar como teste (só no ambiente de desenvolvimento)
               </Button>
-            ) : (
-              <>
-                <Button size="lg" variant="soft" onClick={() => startLocal(true)}>
-                  <Sparkles /> Explorar com dados de exemplo
-                </Button>
-                <Button variant="ghost" onClick={() => startLocal(false)}>
-                  Começar vazio, só neste navegador
-                </Button>
-              </>
-            )}
+            ) : null}
           </div>
 
-          <ul className="mt-8 grid gap-2.5 text-sm text-muted-foreground">
+          <ul className="mt-6 grid gap-2 text-sm text-muted-foreground">
             <li className="flex gap-2">
               <Lock className="mt-0.5 size-4 shrink-0 text-primary" />
-              Cada conta só enxerga os próprios dados (regras de segurança do Firebase).
+              Só você acessa seus dados (regras de segurança do Firebase).
             </li>
             <li className="flex gap-2">
-              <CircleCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-              No modo local nada sai do seu navegador — dá para enviar para a nuvem depois.
+              <Smartphone className="mt-0.5 size-4 shrink-0 text-primary" />
+              Funciona no celular: dá para adicionar à tela inicial.
             </li>
           </ul>
 
-          <div className="mt-10 flex flex-wrap gap-2 lg:hidden">
+          <div className="mt-6 flex flex-wrap gap-1.5 lg:hidden">
             {BANKS.slice(0, 8).map((slug) => (
-              <BankLogo key={slug} slug={slug} size={30} />
+              <BankLogo key={slug} slug={slug} size={28} />
             ))}
           </div>
         </div>

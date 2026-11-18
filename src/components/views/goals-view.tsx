@@ -92,7 +92,7 @@ export function GoalsView() {
 
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold tracking-tight">Seus objetivos</h2>
-        <Button onClick={() => open({ type: "goal" })}>
+        <Button onClick={() => open({ type: "goal" })} data-tour="add-goal">
           <Plus /> Novo objetivo
         </Button>
       </div>
@@ -110,8 +110,8 @@ export function GoalsView() {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map(({ goal, plan }) => (
-            <GoalCard key={goal.id} goal={goal} plan={plan} free={free} />
+          {items.map(({ goal, plan }, index) => (
+            <GoalCard key={goal.id} goal={goal} plan={plan} free={free} tourTarget={index === 0 ? "goal-card" : undefined} />
           ))}
         </div>
       )}
@@ -142,7 +142,7 @@ function ProgressRing({ value, color, size = 76 }: { value: number; color: strin
   );
 }
 
-function GoalCard({ goal, plan, free }: { goal: Goal; plan: GoalPlan; free: number }) {
+function GoalCard({ goal, plan, free, tourTarget }: { goal: Goal; plan: GoalPlan; free: number; tourTarget?: string }) {
   const { today } = useFinance();
   const { open } = useDialogs();
   const [simOpen, setSimOpen] = useState(false);
@@ -151,7 +151,7 @@ function GoalCard({ goal, plan, free }: { goal: Goal; plan: GoalPlan; free: numb
   const fitsAlone = plan.perMonth <= Math.max(0, free);
 
   return (
-    <Card className={cn("flex flex-col overflow-hidden", plan.done && "border-success/40")}>
+    <Card className={cn("flex flex-col overflow-hidden", plan.done && "border-success/40")} data-tour={tourTarget}>
       <div className="h-1.5" style={{ backgroundColor: goal.color }} />
       <CardContent className="flex flex-1 flex-col gap-4 pt-4">
         <div className="flex items-start gap-3">

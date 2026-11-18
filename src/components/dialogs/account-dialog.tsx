@@ -9,10 +9,20 @@ import { getBank } from "@/lib/banks";
 import type { Account, AccountType } from "@/lib/types";
 import { uid } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogColumn,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { BankPicker } from "@/components/bank/bank-picker";
+import { BankLogo } from "@/components/bank/bank-logo";
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
   corrente: "Conta corrente",
@@ -66,16 +76,25 @@ export function AccountDialog({ account, onClose }: { account?: Account; onClose
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar conta" : "Nova conta bancária"}</DialogTitle>
           <DialogDescription>O saldo informado entra no seu patrimônio total.</DialogDescription>
         </DialogHeader>
-        <DialogBody>
-          <Field label="Banco">
-            <BankPicker value={bankSlug} onChange={setBankSlug} allowCash />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <DialogBody className="md:grid-cols-[minmax(0,1fr)_15rem] md:gap-x-6">
+          <DialogColumn>
+            <Field label="Banco">
+              <BankPicker value={bankSlug} onChange={setBankSlug} allowCash />
+            </Field>
+          </DialogColumn>
+          <DialogColumn>
+            <div className="flex items-center gap-3 rounded-xl border p-3">
+              <BankLogo slug={bankSlug} size={36} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{name.trim() || `Conta ${bank.name}`}</p>
+                <p className="truncate text-xs text-muted-foreground">{bank.name}</p>
+              </div>
+            </div>
             <Field label="Nome" htmlFor="acc-name">
               <Input id="acc-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={`Conta ${bank.name}`} maxLength={40} />
             </Field>
@@ -88,10 +107,10 @@ export function AccountDialog({ account, onClose }: { account?: Account; onClose
                 ))}
               </NativeSelect>
             </Field>
-          </div>
-          <Field label="Saldo atual" hint="Use ± para saldo negativo (cheque especial).">
-            <MoneyInput value={balance} onChange={setBalance} allowNegative size="lg" />
-          </Field>
+            <Field label="Saldo atual" hint="Use ± para saldo negativo.">
+              <MoneyInput value={balance} onChange={setBalance} allowNegative />
+            </Field>
+          </DialogColumn>
         </DialogBody>
         <DialogFooter>
           {editing ? (

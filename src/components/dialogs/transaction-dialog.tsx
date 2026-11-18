@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Banknote, CalendarClock, CreditCard, Landmark, Trash2, TrendingDown, TrendingUp, ReceiptText } from "lucide-react";
+import { Banknote, CalendarClock, CreditCard, Landmark, ReceiptText, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useFinance } from "@/context/finance-context";
 import { useDialogs } from "@/context/dialogs-context";
@@ -12,9 +12,19 @@ import { addMonthsKey, formatBRL, monthKeyOf, monthLabel, monthShort, type Month
 import type { PaymentMethod, Transaction, TransactionType } from "@/lib/types";
 import { cn, uid } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogColumn,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
+import { CategorySelect } from "@/components/ui/category-select";
 import { Segmented, Switch } from "@/components/ui/misc";
 import { BankLogo } from "@/components/bank/bank-logo";
 
@@ -31,6 +41,9 @@ const TYPE_OPTIONS: { value: TransactionType; label: string; icon: React.ReactNo
   { value: "conta_geral", label: "Conta geral", icon: <ReceiptText />, activeClassName: "text-warning" },
   { value: "receita", label: "Receita", icon: <TrendingUp />, activeClassName: "text-success" },
 ];
+
+const chip =
+  "inline-flex max-w-full items-center gap-2 rounded-xl border px-2.5 py-1.5 text-sm transition-colors hover:bg-muted";
 
 export function TransactionDialog({ transaction, defaults, month, onClose }: Props) {
   const { data, save, remove, today } = useFinance();
@@ -53,9 +66,9 @@ export function TransactionDialog({ transaction, defaults, month, onClose }: Pro
   const [recurringEnd, setRecurringEnd] = useState(initial?.recurringEnd ?? "");
   const occurrenceMonth = month ?? monthKeyOf(initial?.date ?? today);
   const [isPaid, setIsPaid] = useState(() => {
-    if (!initial) return true;
-    if (initial.recurring) return (initial.paidMonths ?? []).includes(occurrenceMonth);
-    return initial.isPaid ?? true;
+    if (!transaction) return defaults?.isPaid ?? true;
+    if (transaction.recurring) return (transaction.paidMonths ?? []).includes(occurrenceMonth);
+    return transaction.isPaid ?? true;
   });
 
   const categories = categoriesFor(type);
@@ -152,7 +165,7 @@ export function TransactionDialog({ transaction, defaults, month, onClose }: Pro
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar lançamento" : "Novo lançamento"}</DialogTitle>
           <DialogDescription>
@@ -163,169 +176,143 @@ export function TransactionDialog({ transaction, defaults, month, onClose }: Pro
                 : "Gastos do dia a dia no Pix, débito, dinheiro ou cartão."}
           </DialogDescription>
         </DialogHeader>
-        <DialogBody>
-          <Segmented value={type} onChange={changeType} options={TYPE_OPTIONS} />
-
-          <MoneyInput value={amount} onChange={setAmount} size="lg" autoFocus={!editing} aria-label="Valor" />
-
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <Field label="Descrição" htmlFor="tx-description">
-              <Input
-                id="tx-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder={type === "receita" ? "Ex.: Salário" : type === "conta_geral" ? "Ex.: Conta de luz" : "Ex.: Mercado"}
-                maxLength={80}
-              />
-            </Field>
-            <Field label={type === "conta_geral" ? "Vencimento" : "Data"} htmlFor="tx-date">
-              <Input id="tx-date" type="date" value={date} onChange={(event) => setDate(event.target.value || today)} />
-            </Field>
-          </div>
-
-          <Field label="Categoria">
-            <div className="flex flex-wrap gap-1.5">
-              {categories.map((c) => {
-                const Icon = c.icon;
-                const active = c.id === category;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setCategory(c.id)}
-                    aria-pressed={active}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted",
-                      active && "border-transparent text-white",
-                    )}
-                    style={active ? { backgroundColor: c.color } : undefined}
-                  >
-                    <Icon className="size-3.5" style={active ? undefined : { color: c.color }} />
-                    {c.label}
-                  </button>
-                );
-              })}
+        <DialogBody className="md:grid-cols-2 md:gap-x-6">
+          <Segmented value={type} onChange={changeType} options={TYPE_OPTIONS} className="md:col-span-2" />
+          <DialogColumn>
+            <MoneyInput value={amount} onChange={setAmount} size="lg" autoFocus={!editing} aria-label="Valor" />
+            <div className="grid grid-cols-[minmax(0,1fr)_9.75rem] gap-3">
+              <Field label="Descrição" htmlFor="tx-description">
+                <Input
+                  id="tx-description"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder={type === "receita" ? "Ex.: Salário" : type === "conta_geral" ? "Ex.: Conta de luz" : "Ex.: Mercado"}
+                  maxLength={80}
+                />
+              </Field>
+              <Field label={type === "conta_geral" ? "Vencimento" : "Data"} htmlFor="tx-date">
+                <Input id="tx-date" type="date" value={date} onChange={(event) => setDate(event.target.value || today)} />
+              </Field>
             </div>
-          </Field>
-
-          {type !== "receita" ? (
-            <Field label="Como foi pago?">
-              <Segmented
-                value={paymentMethod}
-                onChange={(value) => {
-                  setPaymentMethod(value);
-                  if (value !== "cartao") setInstallments(1);
-                }}
-                options={[
-                  { value: "pix_debito", label: "Pix / débito", icon: <Landmark /> },
-                  { value: "cartao", label: "Cartão", icon: <CreditCard /> },
-                  { value: "dinheiro", label: "Dinheiro", icon: <Banknote /> },
-                ]}
-              />
+            <Field label="Categoria" htmlFor="tx-category">
+              <CategorySelect id="tx-category" value={category} onChange={setCategory} categories={categories} />
             </Field>
-          ) : null}
+          </DialogColumn>
 
-          {isCard ? (
-            data.cards.length === 0 ? (
-              <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                Você ainda não cadastrou cartões. Cadastre em <strong>Cartões e contas</strong> para lançar compras no crédito.
-              </p>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
-                <Field label="Cartão">
+          <DialogColumn>
+            {type !== "receita" ? (
+              <Field label="Como foi pago?">
+                <Segmented
+                  value={paymentMethod}
+                  onChange={(value) => {
+                    setPaymentMethod(value);
+                    if (value !== "cartao") setInstallments(1);
+                  }}
+                  options={[
+                    { value: "pix_debito", label: "Pix / débito", icon: <Landmark /> },
+                    { value: "cartao", label: "Cartão", icon: <CreditCard /> },
+                    { value: "dinheiro", label: "Dinheiro", icon: <Banknote /> },
+                  ]}
+                />
+              </Field>
+            ) : null}
+
+            {isCard ? (
+              data.cards.length === 0 ? (
+                <p className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+                  Você ainda não cadastrou cartões. Cadastre em <strong>Cartões e contas</strong> para lançar compras no crédito.
+                </p>
+              ) : (
+                <div className="grid grid-cols-[minmax(0,1fr)_7rem] items-start gap-3">
+                  <Field label="Cartão">
+                    <div className="flex flex-wrap gap-1.5">
+                      {data.cards.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setCardId(c.id)}
+                          aria-pressed={c.id === cardId}
+                          className={cn(chip, c.id === cardId && "border-primary bg-accent font-medium")}
+                        >
+                          <BankLogo slug={c.bankSlug} size={22} />
+                          <span className="truncate">{c.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                  <Field label="Parcelas">
+                    <NativeSelect value={installments} onChange={(event) => setInstallments(Number(event.target.value))}>
+                      {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
+                        <option key={n} value={n}>
+                          {n === 1 ? "À vista" : `${n}x`}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                </div>
+              )
+            ) : effectiveMethod === "pix_debito" ? (
+              <Field label={type === "receita" ? "Entrou em qual conta?" : "Saiu de qual conta?"}>
+                {data.accounts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Cadastre suas contas em Cartões e contas para ver os gastos por banco.</p>
+                ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {data.cards.map((c) => (
+                    {data.accounts.map((a) => (
                       <button
-                        key={c.id}
+                        key={a.id}
                         type="button"
-                        onClick={() => setCardId(c.id)}
-                        aria-pressed={c.id === cardId}
-                        className={cn(
-                          "inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-sm transition-colors hover:bg-muted",
-                          c.id === cardId && "border-primary bg-accent font-medium",
-                        )}
+                        onClick={() => setAccountId(a.id === accountId ? "" : a.id)}
+                        aria-pressed={a.id === accountId}
+                        className={cn(chip, a.id === accountId && "border-primary bg-accent font-medium")}
                       >
-                        <BankLogo slug={c.bankSlug} size={22} />
-                        {c.name}
+                        <BankLogo slug={a.bankSlug} size={22} />
+                        <span className="truncate">{a.name}</span>
                       </button>
                     ))}
                   </div>
-                </Field>
-                <Field label="Parcelas">
-                  <NativeSelect value={installments} onChange={(event) => setInstallments(Number(event.target.value))}>
-                    {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
-                      <option key={n} value={n}>
-                        {n === 1 ? "À vista" : `${n}x`}
-                      </option>
-                    ))}
-                  </NativeSelect>
-                </Field>
-              </div>
-            )
-          ) : effectiveMethod === "pix_debito" ? (
-            <Field label={type === "receita" ? "Entrou em qual conta?" : "Saiu de qual conta?"}>
-              {data.accounts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Cadastre suas contas em Cartões e contas para ver os gastos por banco.</p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {data.accounts.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => setAccountId(a.id === accountId ? "" : a.id)}
-                      aria-pressed={a.id === accountId}
-                      className={cn(
-                        "inline-flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-sm transition-colors hover:bg-muted",
-                        a.id === accountId && "border-primary bg-accent font-medium",
-                      )}
-                    >
-                      <BankLogo slug={a.bankSlug} size={22} />
-                      {a.name}
-                    </button>
-                  ))}
+                )}
+              </Field>
+            ) : null}
+
+            {invoiceHint || installmentText ? (
+              <div className="flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
+                <CalendarClock className="mt-0.5 size-4 shrink-0" />
+                <div className="grid gap-0.5">
+                  {installmentText ? <span className="font-medium text-foreground">{installmentText}</span> : null}
+                  {invoiceHint ? <span>{invoiceHint}</span> : null}
                 </div>
-              )}
-            </Field>
-          ) : null}
-
-          {invoiceHint || installmentText ? (
-            <div className="flex items-start gap-2 rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
-              <CalendarClock className="mt-0.5 size-4 shrink-0" />
-              <div className="grid gap-0.5">
-                {installmentText ? <span className="font-medium text-foreground">{installmentText}</span> : null}
-                {invoiceHint ? <span>{invoiceHint}</span> : null}
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          {canRepeat ? (
-            <div className="grid gap-3 rounded-xl border p-3">
-              <label className="flex items-center justify-between gap-3">
+            {canRepeat ? (
+              <div className="grid gap-3 rounded-xl border p-3">
+                <label className="flex items-center justify-between gap-3">
+                  <span>
+                    <span className="block text-sm font-medium">{type === "receita" ? "Receita fixa (todo mês)" : "Conta fixa (repete todo mês)"}</span>
+                    <span className="block text-xs text-muted-foreground">Aparece sozinha nos próximos meses.</span>
+                  </span>
+                  <Switch checked={recurring} onCheckedChange={setRecurring} />
+                </label>
+                {recurring ? (
+                  <Field label="Repetir até (opcional)" htmlFor="tx-end">
+                    <Input id="tx-end" type="month" value={recurringEnd} min={monthKeyOf(date)} onChange={(event) => setRecurringEnd(event.target.value)} />
+                  </Field>
+                ) : null}
+              </div>
+            ) : null}
+
+            {type !== "despesa_diaria" ? (
+              <label className="flex items-center justify-between gap-3 rounded-xl border p-3">
                 <span>
-                  <span className="block text-sm font-medium">{type === "receita" ? "Receita fixa (todo mês)" : "Conta fixa (repete todo mês)"}</span>
-                  <span className="block text-xs text-muted-foreground">Aparece automaticamente nos próximos meses.</span>
+                  <span className="block text-sm font-medium">{type === "receita" ? "Já recebi" : "Já está paga"}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {recurring ? `Vale para ${monthLabel(occurrenceMonth).toLowerCase()}.` : "Contas pendentes aparecem nos vencimentos."}
+                  </span>
                 </span>
-                <Switch checked={recurring} onCheckedChange={setRecurring} />
+                <Switch checked={isPaid} onCheckedChange={setIsPaid} />
               </label>
-              {recurring ? (
-                <Field label="Repetir até (opcional)" htmlFor="tx-end" hint="Deixe vazio para repetir sem data de fim.">
-                  <Input id="tx-end" type="month" value={recurringEnd} min={monthKeyOf(date)} onChange={(event) => setRecurringEnd(event.target.value)} />
-                </Field>
-              ) : null}
-            </div>
-          ) : null}
-
-          {type !== "despesa_diaria" ? (
-            <label className="flex items-center justify-between gap-3 rounded-xl border p-3">
-              <span>
-                <span className="block text-sm font-medium">{type === "receita" ? "Já recebi" : "Já está paga"}</span>
-                <span className="block text-xs text-muted-foreground">
-                  {recurring ? `Vale para ${monthLabel(occurrenceMonth).toLowerCase()}.` : "Contas pendentes aparecem nos alertas de vencimento."}
-                </span>
-              </span>
-              <Switch checked={isPaid} onCheckedChange={setIsPaid} />
-            </label>
-          ) : null}
+            ) : null}
+          </DialogColumn>
         </DialogBody>
         <DialogFooter>
           {editing ? (

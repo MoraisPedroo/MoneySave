@@ -117,7 +117,7 @@ export function TransactionsView() {
         </Button>
       </div>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden" data-tour="tx-list">
         <div className="flex flex-wrap items-center gap-3 border-b p-4">
           <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)} className="max-w-full">
             <TabsList>

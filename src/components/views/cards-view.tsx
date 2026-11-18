@@ -58,7 +58,7 @@ export function CardsView() {
             <h2 className="text-lg font-semibold tracking-tight">Cartões de crédito</h2>
             <p className="text-sm text-muted-foreground">Toque no cartão para ver as faturas mês a mês.</p>
           </div>
-          <Button onClick={() => open({ type: "card" })}>
+          <Button onClick={() => open({ type: "card" })} data-tour="add-card">
             <Plus /> Novo cartão
           </Button>
         </div>
@@ -76,10 +76,10 @@ export function CardsView() {
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {overviews.map((ov) => {
+            {overviews.map((ov, index) => {
               const alert = ov.usage >= 0.8;
               return (
-                <Card key={ov.card.id} className="overflow-hidden">
+                <Card key={ov.card.id} className="overflow-hidden" data-tour={index === 0 ? "card-item" : undefined}>
                   <button
                     type="button"
                     className="block w-full p-4 pb-0 text-left transition-transform hover:-translate-y-0.5"
@@ -139,7 +139,7 @@ export function CardsView() {
         )}
       </section>
 
-      <section className="grid gap-4">
+      <section className="grid gap-4" data-tour="accounts">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Contas e saldos</h2>

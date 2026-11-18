@@ -12,17 +12,9 @@ import {
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 import { collection, deleteDoc, doc, onSnapshot, setDoc, writeBatch } from "firebase/firestore";
 import { toast } from "sonner";
-import { SANITIZERS } from "@/lib/backup";
+import { SANITIZERS, sanitizeData } from "@/lib/backup";
 import { getFirebase, isFirebaseConfigured } from "@/lib/firebase";
-import { monthKeyOf, todayISO, type MonthKey } from "@/lib/format";
-import {
-  clearLocalData,
-  hasLocalData,
-  readLocalData,
-  readLocalMode,
-  writeLocalData,
-  writeLocalMode,
-} from "@/lib/local-store";
+import { currentMonthKey, monthKeyOf, todayISO, type MonthKey } from "@/lib/format";
 import { buildSampleData } from "@/lib/sample-data";
 import {
   COLLECTIONS,
@@ -32,7 +24,7 @@ import {
   type FinanceData,
 } from "@/lib/types";
 
-export type AppMode = "loading" | "signed-out" | "local" | "cloud";
+export type AppMode = "loading" | "signed-out" | "cloud";
 
 export interface FinanceUser {
   uid: string;
@@ -41,13 +33,38 @@ export interface FinanceUser {
   photoURL: string | null;
 }
 
+/** Preferências guardadas em users/{uid} (tutorial e checklist de primeiros passos). */
+export interface UserProfile {
+  tutorial: "done" | "skipped" | null;
+  onboardingDone: boolean;
+  skippedSteps: string[];
+}
+
+const DEFAULT_PROFILE: UserProfile = { tutorial: null, onboardingDone: false, skippedSteps: [] };
+
+function sanitizeProfile(raw: unknown): UserProfile {
+  const source = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+  return {
+    tutorial: source.tutorial === "done" || source.tutorial === "skipped" ? source.tutorial : null,
+    onboardingDone: source.onboardingDone === true,
+    skippedSteps: Array.isArray(source.skippedSteps) ? source.skippedSteps.filter((s): s is string => typeof s === "string") : [],
+  };
+}
+
+/** Login de teste só em desenvolvimento (npm run dev): dados em memória, nada vai para o Firebase. */
+const DEV_LOGIN_ENABLED = process.env.NODE_ENV === "development";
+const DEV_SESSION_KEY = "moneysave:dev-session";
+
 interface FinanceContextValue {
   mode: AppMode;
   user: FinanceUser | null;
   cloudAvailable: boolean;
-  /** dados carregados (local ou primeira sincronização da nuvem) */
+  /** dados carregados (primeira sincronização da nuvem) */
   ready: boolean;
+  /** dados exibidos (os reais ou os de exemplo durante o tutorial) */
   data: FinanceData;
+  /** a conta ainda não tem nenhum dado cadastrado */
+  isRealDataEmpty: boolean;
   today: string;
   month: MonthKey;
   setMonth: (month: MonthKey) => void;
@@ -60,11 +77,14 @@ interface FinanceContextValue {
   replaceAll: (data: FinanceData) => Promise<boolean>;
   signIn: () => Promise<void>;
   signOutUser: () => Promise<void>;
-  startLocal: (withSample: boolean) => void;
-  exitLocal: () => void;
-  localDataAvailable: boolean;
-  importLocalToCloud: () => Promise<void>;
-  loadSample: () => Promise<boolean>;
+  profile: UserProfile;
+  updateProfile: (patch: Partial<UserProfile>) => void;
+  /** modo exemplo do tutorial: dados fictícios só em memória */
+  sandbox: boolean;
+  startSandbox: () => void;
+  endSandbox: () => void;
+  devLoginAvailable: boolean;
+  devLogin: () => void;
 }
 
 const FinanceContext = createContext<FinanceContextValue | null>(null);
@@ -75,6 +95,13 @@ const NOT_LOADED: Record<CollectionName, boolean> = {
   subscriptions: false,
   transactions: false,
   goals: false,
+};
+const ALL_LOADED: Record<CollectionName, boolean> = {
+  accounts: true,
+  cards: true,
+  subscriptions: true,
+  transactions: true,
+  goals: true,
 };
 
 const firebaseErrorMessage = (error: unknown) => {
@@ -90,35 +117,56 @@ function clean<T extends object>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function upsert<T extends { id: string }>(list: T[], record: T): T[] {
+  return list.some((entry) => entry.id === record.id)
+    ? list.map((entry) => (entry.id === record.id ? record : entry))
+    : [...list, record];
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<AppMode>("loading");
+  const [backend, setBackend] = useState<"firestore" | "memory">("firestore");
   const [user, setUser] = useState<FinanceUser | null>(null);
-  const [data, setData] = useState<FinanceData>(EMPTY_DATA);
+  const [realData, setRealData] = useState<FinanceData>(EMPTY_DATA);
+  const [sandboxData, setSandboxData] = useState<FinanceData | null>(null);
   const [loaded, setLoaded] = useState<Record<CollectionName, boolean>>(NOT_LOADED);
+  const [profile, setProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [today] = useState(() => (typeof window === "undefined" ? "" : todayISO()));
   const [month, setMonth] = useState<MonthKey>(() => (typeof window === "undefined" ? "" : monthKeyOf(todayISO())));
   const [cuts, setCuts] = useState<Set<string>>(() => new Set());
-  const [localDataAvailable, setLocalDataAvailable] = useState(false);
 
-  // Resolve o modo: usuário do Google (nuvem), modo local ou tela de entrada.
+  // Quem está logado: conta Google (Firebase Auth) ou tela de entrada.
   useEffect(() => {
     let active = true;
-    const resolveWithoutUser = () => {
-      if (!active) return;
-      setUser(null);
-      setLocalDataAvailable(hasLocalData());
-      if (readLocalMode()) {
-        setData(readLocalData() ?? EMPTY_DATA);
-        setMode("local");
-      } else {
-        setData(EMPTY_DATA);
-        setMode("signed-out");
+
+    if (DEV_LOGIN_ENABLED) {
+      try {
+        const saved = sessionStorage.getItem(DEV_SESSION_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved) as { data?: unknown; profile?: unknown };
+          queueMicrotask(() => {
+            if (!active) return;
+            setBackend("memory");
+            setUser({ uid: "dev", name: "Pedro Teste", email: "teste@local.dev", photoURL: null });
+            setRealData(sanitizeData(parsed.data));
+            setProfile(sanitizeProfile(parsed.profile));
+            setLoaded(ALL_LOADED);
+            setProfileLoaded(true);
+            setMode("cloud");
+          });
+          return () => {
+            active = false;
+          };
+        }
+      } catch {
+        /* segue para o login normal */
       }
-    };
+    }
 
     const firebase = getFirebase();
     if (!firebase) {
-      queueMicrotask(resolveWithoutUser);
+      queueMicrotask(() => active && setMode("signed-out"));
       return () => {
         active = false;
       };
@@ -133,12 +181,15 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           email: fbUser.email ?? "",
           photoURL: fbUser.photoURL,
         });
-        setLocalDataAvailable(hasLocalData());
+        setBackend("firestore");
         setLoaded(NOT_LOADED);
-        setData(EMPTY_DATA);
+        setProfileLoaded(false);
+        setRealData(EMPTY_DATA);
         setMode("cloud");
       } else {
-        resolveWithoutUser();
+        setUser(null);
+        setRealData(EMPTY_DATA);
+        setMode("signed-out");
       }
     });
     return () => {
@@ -147,8 +198,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Sincronização em tempo real com o Firestore: users/{uid}/{coleção}
-  const uid = mode === "cloud" ? user?.uid : undefined;
+  // Sincronização em tempo real com o Firestore: users/{uid}/{coleção} e o perfil users/{uid}
+  const uid = mode === "cloud" && backend === "firestore" ? user?.uid : undefined;
   useEffect(() => {
     if (!uid) return;
     const firebase = getFirebase();
@@ -159,7 +210,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         (snapshot) => {
           const sanitize = SANITIZERS[name] as (raw: Record<string, unknown>) => EntityMap[typeof name];
           const items = snapshot.docs.map((d) => sanitize({ ...d.data(), id: d.id }));
-          setData((prev) => ({ ...prev, [name]: items }));
+          setRealData((prev) => ({ ...prev, [name]: items }));
           setLoaded((prev) => (prev[name] ? prev : { ...prev, [name]: true }));
         },
         (error) => {
@@ -169,112 +220,125 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         },
       ),
     );
+    unsubscribers.push(
+      onSnapshot(
+        doc(firebase.db, "users", uid),
+        (snapshot) => {
+          setProfile(snapshot.exists() ? sanitizeProfile(snapshot.data()) : DEFAULT_PROFILE);
+          setProfileLoaded(true);
+        },
+        (error) => {
+          console.error("[MoneySave] erro ao ler o perfil", error);
+          setProfileLoaded(true);
+        },
+      ),
+    );
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, [uid]);
 
-  // Modo local: grava tudo no navegador a cada mudança
+  // Sessão de teste (dev): guarda em sessionStorage para sobreviver a recarregamentos
   useEffect(() => {
-    if (mode === "local") writeLocalData(data);
-  }, [mode, data]);
+    if (!DEV_LOGIN_ENABLED || backend !== "memory" || mode !== "cloud") return;
+    try {
+      sessionStorage.setItem(DEV_SESSION_KEY, JSON.stringify({ data: realData, profile }));
+    } catch {
+      /* ignora */
+    }
+  }, [backend, mode, realData, profile]);
+
+  const sandbox = sandboxData !== null;
 
   const save = useCallback(
     <C extends CollectionName>(name: C, item: EntityMap[C]) => {
       const record = { ...item, updatedAt: Date.now() } as EntityMap[C];
-      if (mode === "cloud" && user) {
-        const firebase = getFirebase();
-        if (!firebase) return;
-        // Sem await: o cache local do Firestore atualiza a tela na hora (também offline).
-        setDoc(doc(firebase.db, "users", user.uid, name, record.id), clean(record)).catch((error) => {
-          toast.error("Não foi possível salvar na nuvem.", { description: firebaseErrorMessage(error) });
-        });
+      if (sandbox) {
+        setSandboxData((prev) => (prev ? { ...prev, [name]: upsert(prev[name] as EntityMap[C][], record) } : prev));
         return;
       }
-      setData((prev) => {
-        const list = prev[name] as EntityMap[C][];
-        const exists = list.some((entry) => entry.id === record.id);
-        const next = exists ? list.map((entry) => (entry.id === record.id ? record : entry)) : [...list, record];
-        return { ...prev, [name]: next };
+      if (backend === "memory") {
+        setRealData((prev) => ({ ...prev, [name]: upsert(prev[name] as EntityMap[C][], record) }));
+        return;
+      }
+      const firebase = getFirebase();
+      if (!firebase || !user) return;
+      // Sem await: o cache local do Firestore atualiza a tela na hora (também offline).
+      setDoc(doc(firebase.db, "users", user.uid, name, record.id), clean(record)).catch((error) => {
+        toast.error("Não foi possível salvar na nuvem.", { description: firebaseErrorMessage(error) });
       });
     },
-    [mode, user],
+    [sandbox, backend, user],
   );
 
   const remove = useCallback(
     (name: CollectionName, id: string) => {
-      if (mode === "cloud" && user) {
-        const firebase = getFirebase();
-        if (!firebase) return;
-        deleteDoc(doc(firebase.db, "users", user.uid, name, id)).catch((error) => {
-          toast.error("Não foi possível excluir na nuvem.", { description: firebaseErrorMessage(error) });
-        });
+      const drop = (prev: FinanceData): FinanceData => ({ ...prev, [name]: (prev[name] as { id: string }[]).filter((entry) => entry.id !== id) });
+      if (sandbox) {
+        setSandboxData((prev) => (prev ? drop(prev) : prev));
         return;
       }
-      setData((prev) => ({ ...prev, [name]: (prev[name] as { id: string }[]).filter((entry) => entry.id !== id) }));
-    },
-    [mode, user],
-  );
-
-  const writeAllToCloud = useCallback(
-    async (uidValue: string, next: FinanceData, deleteExisting: FinanceData | null) => {
+      if (backend === "memory") {
+        setRealData(drop);
+        return;
+      }
       const firebase = getFirebase();
-      if (!firebase) return false;
-      type Op = { kind: "set"; name: CollectionName; id: string; value: object } | { kind: "delete"; name: CollectionName; id: string };
-      const ops: Op[] = [];
-      if (deleteExisting) {
-        for (const name of COLLECTIONS) {
-          const keep = new Set(next[name].map((entry) => entry.id));
-          for (const entry of deleteExisting[name]) if (!keep.has(entry.id)) ops.push({ kind: "delete", name, id: entry.id });
-        }
-      }
-      for (const name of COLLECTIONS) {
-        for (const entry of next[name]) ops.push({ kind: "set", name, id: entry.id, value: clean({ ...entry, updatedAt: Date.now() }) });
-      }
-      for (let i = 0; i < ops.length; i += 400) {
-        const batch = writeBatch(firebase.db);
-        for (const op of ops.slice(i, i + 400)) {
-          const ref = doc(firebase.db, "users", uidValue, op.name, op.id);
-          if (op.kind === "delete") batch.delete(ref);
-          else batch.set(ref, op.value);
-        }
-        await batch.commit();
-      }
-      return true;
+      if (!firebase || !user) return;
+      deleteDoc(doc(firebase.db, "users", user.uid, name, id)).catch((error) => {
+        toast.error("Não foi possível excluir na nuvem.", { description: firebaseErrorMessage(error) });
+      });
     },
-    [],
+    [sandbox, backend, user],
   );
 
   const replaceAll = useCallback(
     async (next: FinanceData) => {
-      if (mode === "cloud" && user) {
-        try {
-          return await writeAllToCloud(user.uid, next, data);
-        } catch (error) {
-          toast.error("Não foi possível gravar na nuvem.", { description: firebaseErrorMessage(error) });
-          return false;
-        }
+      if (sandbox) {
+        setSandboxData(next);
+        return true;
       }
-      setData(next);
-      return true;
+      if (backend === "memory") {
+        setRealData(next);
+        return true;
+      }
+      const firebase = getFirebase();
+      if (!firebase || !user) return false;
+      try {
+        type Op = { kind: "set"; name: CollectionName; id: string; value: object } | { kind: "delete"; name: CollectionName; id: string };
+        const ops: Op[] = [];
+        for (const name of COLLECTIONS) {
+          const keep = new Set(next[name].map((entry) => entry.id));
+          for (const entry of realData[name]) if (!keep.has(entry.id)) ops.push({ kind: "delete", name, id: entry.id });
+          for (const entry of next[name]) ops.push({ kind: "set", name, id: entry.id, value: clean({ ...entry, updatedAt: Date.now() }) });
+        }
+        for (let i = 0; i < ops.length; i += 400) {
+          const batch = writeBatch(firebase.db);
+          for (const op of ops.slice(i, i + 400)) {
+            const ref = doc(firebase.db, "users", user.uid, op.name, op.id);
+            if (op.kind === "delete") batch.delete(ref);
+            else batch.set(ref, op.value);
+          }
+          await batch.commit();
+        }
+        return true;
+      } catch (error) {
+        toast.error("Não foi possível gravar na nuvem.", { description: firebaseErrorMessage(error) });
+        return false;
+      }
     },
-    [mode, user, data, writeAllToCloud],
+    [sandbox, backend, user, realData],
   );
 
-  const loadSample = useCallback(() => replaceAll(buildSampleData(todayISO())), [replaceAll]);
-
-  const importLocalToCloud = useCallback(async () => {
-    if (mode !== "cloud" || !user) return;
-    const local = readLocalData();
-    if (!local) return;
-    try {
-      await writeAllToCloud(user.uid, local, null);
-      clearLocalData();
-      writeLocalMode(false);
-      setLocalDataAvailable(false);
-      toast.success("Dados do modo local enviados para a sua conta.");
-    } catch (error) {
-      toast.error("Não foi possível enviar os dados.", { description: firebaseErrorMessage(error) });
-    }
-  }, [mode, user, writeAllToCloud]);
+  const updateProfile = useCallback(
+    (patch: Partial<UserProfile>) => {
+      setProfile((prev) => ({ ...prev, ...patch }));
+      if (backend !== "firestore") return;
+      const firebase = getFirebase();
+      if (!firebase || !user) return;
+      setDoc(doc(firebase.db, "users", user.uid), clean({ ...patch, updatedAt: Date.now() }), { merge: true }).catch((error) => {
+        console.error("[MoneySave] erro ao salvar o perfil", error);
+      });
+    },
+    [backend, user],
+  );
 
   const signIn = useCallback(async () => {
     const firebase = getFirebase();
@@ -286,7 +350,6 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     provider.setCustomParameters({ prompt: "select_account" });
     try {
       await signInWithPopup(firebase.auth, provider);
-      writeLocalMode(false);
     } catch (error) {
       const code = (error as { code?: string })?.code ?? "";
       if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return;
@@ -301,29 +364,42 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOutUser = useCallback(async () => {
+    if (DEV_LOGIN_ENABLED) {
+      try {
+        sessionStorage.removeItem(DEV_SESSION_KEY);
+      } catch {
+        /* ignora */
+      }
+    }
     const firebase = getFirebase();
-    if (firebase) await signOut(firebase.auth);
+    if (firebase && backend === "firestore") await signOut(firebase.auth);
     // Recarga completa de propósito: limpa o estado em memória (inclusive páginas preservadas pelo
     // <Activity> do Cache Components) do usuário anterior — recomendação do guia do Next.js 16.
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = "/";
+  }, [backend]);
+
+  const devLogin = useCallback(() => {
+    if (!DEV_LOGIN_ENABLED) return;
+    setBackend("memory");
+    setUser({ uid: "dev", name: "Pedro Teste", email: "teste@local.dev", photoURL: null });
+    setRealData(EMPTY_DATA);
+    setProfile(DEFAULT_PROFILE);
+    setLoaded(ALL_LOADED);
+    setProfileLoaded(true);
+    setMode("cloud");
   }, []);
 
-  const startLocal = useCallback((withSample: boolean) => {
-    const existing = readLocalData();
-    const next = withSample ? buildSampleData(todayISO()) : existing ?? EMPTY_DATA;
-    writeLocalMode(true);
-    writeLocalData(next);
-    setData(next);
-    setLocalDataAvailable(true);
-    setMode("local");
+  const startSandbox = useCallback(() => {
+    setSandboxData(buildSampleData(todayISO()));
+    setCuts(new Set());
+    setMonth(currentMonthKey());
   }, []);
 
-  const exitLocal = useCallback(() => {
-    writeLocalMode(false);
-    setLocalDataAvailable(hasLocalData());
-    setData(EMPTY_DATA);
-    setMode("signed-out");
+  const endSandbox = useCallback(() => {
+    setSandboxData(null);
+    setCuts(new Set());
+    setMonth(currentMonthKey());
   }, []);
 
   const toggleCut = useCallback((id: string) => {
@@ -337,7 +413,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const clearCuts = useCallback(() => setCuts(new Set()), []);
 
-  const ready = mode === "local" || (mode === "cloud" && COLLECTIONS.every((name) => loaded[name]));
+  const ready = mode === "cloud" && profileLoaded && COLLECTIONS.every((name) => loaded[name]);
+  const data = sandboxData ?? realData;
+  const isRealDataEmpty = COLLECTIONS.every((name) => realData[name].length === 0);
 
   const value = useMemo<FinanceContextValue>(
     () => ({
@@ -346,6 +424,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       cloudAvailable: isFirebaseConfigured,
       ready,
       data,
+      isRealDataEmpty,
       today,
       month,
       setMonth,
@@ -357,13 +436,15 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       replaceAll,
       signIn,
       signOutUser,
-      startLocal,
-      exitLocal,
-      localDataAvailable,
-      importLocalToCloud,
-      loadSample,
+      profile,
+      updateProfile,
+      sandbox,
+      startSandbox,
+      endSandbox,
+      devLoginAvailable: DEV_LOGIN_ENABLED,
+      devLogin,
     }),
-    [mode, user, ready, data, today, month, cuts, toggleCut, clearCuts, save, remove, replaceAll, signIn, signOutUser, startLocal, exitLocal, localDataAvailable, importLocalToCloud, loadSample],
+    [mode, user, ready, data, isRealDataEmpty, today, month, cuts, toggleCut, clearCuts, save, remove, replaceAll, signIn, signOutUser, profile, updateProfile, sandbox, startSandbox, endSandbox, devLogin],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

@@ -33,12 +33,12 @@ export function BankPicker({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar banco, fintech ou cooperativa (nome ou código)"
+          placeholder={`Buscar entre ${INSTITUTION_COUNT}+ bancos e fintechs`}
           className="pl-9"
           aria-label="Buscar banco"
         />
       </div>
-      <div className="grid max-h-56 grid-cols-3 gap-1.5 overflow-y-auto rounded-xl border bg-muted/30 p-1.5 sm:grid-cols-4">
+      <div className="grid max-h-[9.5rem] grid-cols-4 gap-1 overflow-y-auto rounded-xl border bg-muted/30 p-1 sm:grid-cols-5">
         {!selectedInList && value ? <BankTile slug={selected.slug} name={selected.name} active onSelect={onChange} /> : null}
         {results.map((bank) => (
           <BankTile key={bank.slug} slug={bank.slug} name={bank.name} active={bank.slug === value} onSelect={onChange} />
@@ -47,9 +47,6 @@ export function BankPicker({
           <p className="col-span-full px-2 py-6 text-center text-sm text-muted-foreground">Nenhuma instituição encontrada.</p>
         ) : null}
       </div>
-      {!query ? (
-        <p className="text-xs text-muted-foreground">Não achou? Busque entre {INSTITUTION_COUNT} instituições do Banco Central.</p>
-      ) : null}
     </div>
   );
 }
@@ -60,16 +57,17 @@ function BankTile({ slug, name, active, onSelect }: { slug: string; name: string
       type="button"
       onClick={() => onSelect(slug)}
       aria-pressed={active}
+      title={name}
       className={cn(
-        "relative flex flex-col items-center gap-1.5 rounded-xl px-1.5 py-2.5 text-center transition-colors outline-none hover:bg-card focus-visible:ring-[3px] focus-visible:ring-ring/40",
+        "relative flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-center transition-colors outline-none hover:bg-card focus-visible:ring-[3px] focus-visible:ring-ring/40",
         active && "bg-card shadow-sm ring-2 ring-primary",
       )}
     >
-      <BankLogo slug={slug} size={34} />
-      <span className="line-clamp-2 text-[11px] leading-tight font-medium">{name}</span>
+      <BankLogo slug={slug} size={30} />
+      <span className="line-clamp-1 w-full text-[10.5px] leading-tight font-medium">{name}</span>
       {active ? (
-        <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Check className="size-3" />
+        <span className="absolute top-0.5 right-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Check className="size-2.5" />
         </span>
       ) : null}
     </button>

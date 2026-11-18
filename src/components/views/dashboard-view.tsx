@@ -11,7 +11,6 @@ import {
   ReceiptText,
   Repeat,
   Scissors,
-  Sparkles,
   Target,
   TrendingDown,
   TrendingUp,
@@ -40,23 +39,45 @@ import type { Transaction } from "@/lib/types";
 import { cn, roundMoney } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge, Progress, Skeleton } from "@/components/ui/misc";
+import { Badge, EmptyState, Progress, Skeleton } from "@/components/ui/misc";
 import { BankLogo } from "@/components/bank/bank-logo";
 import { ServiceAvatar } from "@/components/bank/avatars";
 import { DonutChart, TrendChart } from "@/components/charts/charts";
+import { SetupChecklist } from "@/components/onboarding/setup-checklist";
 
 export function DashboardView() {
-  const { data, month, cuts, ready } = useFinance();
+  const { data, month, cuts, ready, sandbox, profile, isRealDataEmpty } = useFinance();
+  const { open } = useDialogs();
   const summary = useMemo(() => monthSummary(data, month, cuts), [data, month, cuts]);
   const trend = useMemo(() => monthlyTrend(data, month, 6, cuts), [data, month, cuts]);
 
   if (!ready || !month) return <DashboardSkeleton />;
 
-  const isEmpty = Object.values(data).every((list) => list.length === 0);
-  if (isEmpty) return <Onboarding />;
+  const showChecklist = !sandbox && !profile.onboardingDone;
+  if (!sandbox && isRealDataEmpty) {
+    return (
+      <div className="grid gap-4 lg:gap-6">
+        {showChecklist ? (
+          <SetupChecklist />
+        ) : (
+          <EmptyState
+            icon={<Wallet />}
+            title="Nada por aqui ainda"
+            description="Lance seus gastos, contas e receitas para ver quanto sobra no mês."
+            action={
+              <Button onClick={() => open({ type: "transaction" })}>
+                <ReceiptText /> Novo lançamento
+              </Button>
+            }
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 lg:gap-6">
+      {showChecklist ? <SetupChecklist /> : null}
       <div className="grid gap-4 lg:gap-6 xl:grid-cols-3">
         <FreeHero summary={summary} className="xl:col-span-2" />
         <GoalsFitCard free={summary.free} />
@@ -105,6 +126,7 @@ function FreeHero({ summary, className }: { summary: MonthSummary; className?: s
 
   return (
     <div
+      data-tour="hero"
       className={cn(
         "relative overflow-hidden rounded-3xl p-5 text-white shadow-lg sm:p-7",
         negative ? "bg-hero-negative shadow-rose-500/20" : "bg-hero-positive shadow-emerald-500/20",
@@ -187,7 +209,7 @@ function GoalsFitCard({ free }: { free: number }) {
   const left = roundMoney(free - totalPerMonth);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col" data-tour="goals-fit">
       <CardHeader>
         <div>
           <CardTitle className="flex items-center gap-2">
@@ -623,78 +645,6 @@ function CardsStrip() {
         ))}
       </CardContent>
     </Card>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-
-function Onboarding() {
-  const { open, confirm } = useDialogs();
-  const { loadSample, mode } = useFinance();
-  const steps = [
-    { title: "Adicione contas e cartões", text: "Nubank, Inter, PicPay, Sicoob e outros — com limite, fechamento e vencimento.", icon: CreditCard, action: () => open({ type: "card" }) },
-    { title: "Cadastre suas assinaturas", text: "Netflix, Spotify, academia… o radar mostra quanto cada cartão gasta.", icon: Repeat, action: () => open({ type: "subscription" }) },
-    { title: "Lance receitas e contas fixas", text: "Salário, aluguel, luz, internet — marque como fixas para repetir todo mês.", icon: ReceiptText, action: () => open({ type: "transaction", defaults: { type: "receita", category: "salario" } }) },
-    { title: "Crie seus objetivos", text: "Reserva, viagem, quitar dívidas: saiba quanto guardar por mês.", icon: Target, action: () => open({ type: "goal" }) },
-  ];
-  return (
-    <div className="grid gap-6">
-      <div className="relative overflow-hidden rounded-3xl bg-hero-positive p-6 text-white sm:p-8">
-        <div className="pointer-events-none absolute -top-20 -right-10 size-64 rounded-full bg-white/10" />
-        <p className="relative inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
-          <Sparkles className="size-3.5" /> Bem-vindo ao MoneySave
-        </p>
-        <h2 className="relative mt-3 max-w-xl text-2xl font-bold tracking-tight sm:text-3xl">Vamos organizar seu dinheiro em 4 passos.</h2>
-        <p className="relative mt-2 max-w-xl text-white/85">
-          Depois disso você vê quanto sobra no mês, quanto cada cartão gasta e quanto guardar para cada meta.
-        </p>
-        <Button
-          variant="secondary"
-          className="relative mt-5"
-          onClick={() =>
-            confirm({
-              title: "Carregar dados de exemplo?",
-              description:
-                mode === "cloud"
-                  ? "Vamos criar contas, cartões, assinaturas, lançamentos e metas de exemplo na sua conta. Você pode apagar tudo depois em Ajustes."
-                  : "Vamos preencher o app com dados de exemplo para você explorar.",
-              confirmLabel: "Carregar exemplo",
-              onConfirm: async () => {
-                const ok = await loadSample();
-                if (ok) toast.success("Dados de exemplo carregados!");
-              },
-            })
-          }
-        >
-          <Sparkles /> Ver com dados de exemplo
-        </Button>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
-          return (
-            <button
-              key={step.title}
-              type="button"
-              onClick={step.action}
-              className="group flex flex-col gap-3 rounded-2xl border bg-card p-5 text-left shadow-xs transition-colors hover:border-primary/40"
-            >
-              <span className="flex items-center justify-between">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                  <Icon className="size-5" />
-                </span>
-                <span className="text-xs font-semibold text-muted-foreground">Passo {index + 1}</span>
-              </span>
-              <span className="font-semibold">{step.title}</span>
-              <span className="text-sm text-muted-foreground">{step.text}</span>
-              <span className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-primary">
-                Começar <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 

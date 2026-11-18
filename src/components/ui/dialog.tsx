@@ -23,7 +23,7 @@ function DialogContent({
         className={cn(
           "fixed inset-x-0 bottom-0 z-50 flex max-h-[94dvh] flex-col overflow-hidden rounded-t-3xl border bg-popover text-popover-foreground shadow-2xl outline-none",
           "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-8 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-8",
-          "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:data-[state=open]:slide-in-from-bottom-2 sm:data-[state=open]:zoom-in-[0.98] sm:data-[state=closed]:slide-out-to-bottom-2",
+          "sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[92dvh] sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:data-[state=open]:slide-in-from-bottom-2 sm:data-[state=open]:zoom-in-[0.98] sm:data-[state=closed]:slide-out-to-bottom-2",
           className,
         )}
         {...props}
@@ -42,18 +42,28 @@ function DialogContent({
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("grid gap-1 px-5 pt-4 pb-2 pr-12 sm:pt-5", className)} {...props} />;
+  return <div className={cn("grid shrink-0 gap-1 px-5 pt-3 pb-2 pr-12 sm:pt-5", className)} {...props} />;
 }
 
+/**
+ * Área rolável da janela. A rolagem fica no contêiner de fora e a grade de dentro tem altura livre:
+ * assim as linhas da grade nunca "encolhem" e os campos não ficam uns por cima dos outros.
+ */
 function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
-  // [&>*]:min-h-max: filhos com rolagem horizontal não "achatam" quando a janela fica baixa
-  return <div className={cn("grid gap-4 overflow-y-auto px-5 py-3 [&>*]:min-h-max", className)} {...props} />;
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div className={cn("grid gap-4 px-5 py-3", className)} {...props} />
+    </div>
+  );
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("flex flex-col-reverse gap-2 border-t bg-muted/30 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-end", className)}
+      className={cn(
+        "flex shrink-0 flex-col-reverse gap-2 border-t bg-muted/30 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-end",
+        className,
+      )}
       {...props}
     />
   );
@@ -67,4 +77,20 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
   return <DialogPrimitive.Description className={cn("text-sm text-muted-foreground", className)} {...props} />;
 }
 
-export { Dialog, DialogTrigger, DialogClose, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle, DialogDescription };
+/** Coluna de formulário dentro de uma janela de duas colunas. */
+function DialogColumn({ className, ...props }: React.ComponentProps<"div">) {
+  return <div className={cn("grid min-w-0 content-start gap-4", className)} {...props} />;
+}
+
+export {
+  Dialog,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogBody,
+  DialogColumn,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+};

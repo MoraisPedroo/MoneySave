@@ -11,7 +11,16 @@ import { GOAL_COLORS, GOAL_ICONS, goalPlan } from "@/lib/goals";
 import type { Goal, GoalPriority } from "@/lib/types";
 import { cn, roundMoney, uid } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogColumn,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Segmented } from "@/components/ui/misc";
@@ -78,64 +87,66 @@ export function GoalDialog({ goal, onClose }: { goal?: Goal; onClose: () => void
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar objetivo" : "Novo objetivo"}</DialogTitle>
           <DialogDescription>Informe quanto quer juntar e até quando — o MoneySave calcula o resto.</DialogDescription>
         </DialogHeader>
-        <DialogBody>
-          <div className="flex items-center gap-3">
-            <span
-              className="flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl"
-              style={{ backgroundColor: `${color}22` }}
-              aria-hidden
-            >
-              {icon}
-            </span>
-            <Field label="Nome do objetivo" htmlFor="goal-title" className="flex-1">
-              <Input id="goal-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Reserva de emergência" maxLength={50} />
-            </Field>
-          </div>
-
-          <Field label="Ícone">
-            <div className="flex flex-wrap gap-1.5">
-              {GOAL_ICONS.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => setIcon(emoji)}
-                  aria-pressed={icon === emoji}
-                  className={cn("flex size-9 items-center justify-center rounded-xl text-lg transition hover:bg-muted", icon === emoji && "bg-accent ring-2 ring-primary")}
-                >
-                  {emoji}
-                </button>
-              ))}
+        <DialogBody className="md:grid-cols-2 md:gap-x-6">
+          <DialogColumn>
+            <div className="flex items-end gap-3">
+              <span
+                className="flex size-12 shrink-0 items-center justify-center rounded-2xl text-2xl"
+                style={{ backgroundColor: `${color}22` }}
+                aria-hidden
+              >
+                {icon}
+              </span>
+              <Field label="Nome do objetivo" htmlFor="goal-title" className="flex-1">
+                <Input id="goal-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Reserva de emergência" maxLength={50} />
+              </Field>
             </div>
-          </Field>
+            <Field label="Ícone">
+              <div className="grid grid-cols-9 gap-1">
+                {GOAL_ICONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setIcon(emoji)}
+                    aria-pressed={icon === emoji}
+                    className={cn("flex aspect-square items-center justify-center rounded-lg text-lg transition hover:bg-muted", icon === emoji && "bg-accent ring-2 ring-primary")}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Cor">
+              <div className="flex flex-wrap gap-2">
+                {GOAL_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    aria-label={`Cor ${c}`}
+                    aria-pressed={color === c}
+                    className={cn("size-7 rounded-full ring-offset-2 ring-offset-background transition", color === c && "ring-2 ring-primary")}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </Field>
+          </DialogColumn>
 
-          <Field label="Cor">
-            <div className="flex flex-wrap gap-2">
-              {GOAL_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  aria-label={`Cor ${c}`}
-                  aria-pressed={color === c}
-                  className={cn("size-7 rounded-full ring-offset-2 ring-offset-background transition", color === c && "ring-2 ring-primary")}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+          <DialogColumn>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Valor da meta">
+                <MoneyInput value={targetAmount} onChange={setTargetAmount} />
+              </Field>
+              <Field label="Já guardado">
+                <MoneyInput value={currentAmount} onChange={setCurrentAmount} />
+              </Field>
             </div>
-          </Field>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Valor da meta">
-              <MoneyInput value={targetAmount} onChange={setTargetAmount} />
-            </Field>
-            <Field label="Já guardado">
-              <MoneyInput value={currentAmount} onChange={setCurrentAmount} />
-            </Field>
             <Field label="Data-alvo" htmlFor="goal-date">
               <Input id="goal-date" type="date" value={targetDate} min={today} onChange={(e) => setTargetDate(e.target.value || targetDate)} />
             </Field>
@@ -150,24 +161,27 @@ export function GoalDialog({ goal, onClose }: { goal?: Goal; onClose: () => void
                 ]}
               />
             </Field>
-          </div>
-
-          {preview && !preview.done ? (
-            <div className="grid grid-cols-3 gap-2 rounded-xl bg-accent/60 p-3 text-center">
-              <div>
-                <p className="text-[11px] text-muted-foreground">Por mês</p>
-                <p className="money font-semibold">{formatBRL(preview.perMonth)}</p>
+            {preview && !preview.done ? (
+              <div className="grid grid-cols-3 gap-2 rounded-xl bg-accent/60 p-3 text-center">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Por mês</p>
+                  <p className="money text-sm font-semibold">{formatBRL(preview.perMonth)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Por semana</p>
+                  <p className="money text-sm font-semibold">{formatBRL(preview.perWeek)}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Por dia</p>
+                  <p className="money text-sm font-semibold">{formatBRL(preview.perDay)}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Por semana</p>
-                <p className="money font-semibold">{formatBRL(preview.perWeek)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Por dia</p>
-                <p className="money font-semibold">{formatBRL(preview.perDay)}</p>
-              </div>
-            </div>
-          ) : null}
+            ) : (
+              <p className="rounded-xl border border-dashed p-3 text-center text-xs text-muted-foreground">
+                Informe o valor da meta para ver quanto guardar por mês, semana e dia.
+              </p>
+            )}
+          </DialogColumn>
         </DialogBody>
         <DialogFooter>
           {editing ? (

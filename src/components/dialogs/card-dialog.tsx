@@ -9,7 +9,16 @@ import { getBank } from "@/lib/banks";
 import type { Card, CardBrand } from "@/lib/types";
 import { cn, uid } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogBody,
+  DialogColumn,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, Input, NativeSelect } from "@/components/ui/input";
 import { MoneyInput } from "@/components/ui/money-input";
 import { BankPicker } from "@/components/bank/bank-picker";
@@ -74,80 +83,89 @@ export function CardDialog({ card, onClose }: { card?: Card; onClose: () => void
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{editing ? "Editar cartão" : "Novo cartão de crédito"}</DialogTitle>
           <DialogDescription>Fechamento e vencimento definem em qual fatura cada compra entra.</DialogDescription>
         </DialogHeader>
-        <DialogBody>
-          <div className="mx-auto w-full max-w-xs">
-            <CreditCardVisual card={{ name: displayName, bankSlug, last4, brand, color: color || null }} />
-          </div>
-
-          <Field label="Banco">
-            <BankPicker value={bankSlug} onChange={setBankSlug} />
-          </Field>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Nome do cartão" htmlFor="card-name">
-              <Input id="card-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={`Cartão ${bank.name}`} maxLength={40} />
-            </Field>
-            <Field label="Limite total">
-              <MoneyInput value={limit} onChange={setLimit} />
-            </Field>
-            <Field label="Dia de fechamento" hint="Melhor dia de compra.">
-              <NativeSelect value={closingDay} onChange={(e) => setClosingDay(Number(e.target.value))}>
-                {DAYS.map((d) => (
-                  <option key={d} value={d}>
-                    Dia {d}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Dia de vencimento">
-              <NativeSelect value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))}>
-                {DAYS.map((d) => (
-                  <option key={d} value={d}>
-                    Dia {d}
-                  </option>
-                ))}
-              </NativeSelect>
-            </Field>
-            <Field label="Bandeira">
-              <NativeSelect value={brand} onChange={(e) => setBrand(e.target.value as CardBrand)}>
-                <option value="mastercard">Mastercard</option>
-                <option value="visa">Visa</option>
-                <option value="elo">Elo</option>
-                <option value="amex">American Express</option>
-                <option value="hipercard">Hipercard</option>
-                <option value="outra">Outra</option>
-              </NativeSelect>
-            </Field>
-            <Field label="Final do cartão (opcional)" htmlFor="card-last4">
-              <Input id="card-last4" inputMode="numeric" value={last4} onChange={(e) => setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="1234" />
-            </Field>
-          </div>
-
-          <Field label="Cor do cartão">
-            <div className="flex flex-wrap gap-2">
-              {COLORS.map((c) => (
-                <button
-                  key={c || "oficial"}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  aria-pressed={color === c}
-                  aria-label={c ? `Cor ${c}` : "Cor oficial do banco"}
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-full border-2 border-transparent text-[10px] font-semibold ring-offset-2 ring-offset-background transition",
-                    color === c && "ring-2 ring-primary",
-                  )}
-                  style={{ background: c || `linear-gradient(135deg, ${bank.gradient[0]}, ${bank.gradient[1]})`, color: "#fff" }}
-                >
-                  {c ? "" : "Of."}
-                </button>
-              ))}
+        <DialogBody className="md:grid-cols-[15.5rem_minmax(0,1fr)] md:gap-x-6">
+          <DialogColumn>
+            <CreditCardVisual card={{ name: displayName, bankSlug, last4, brand, color: color || null }} className="mx-auto max-w-[15.5rem]" />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Bandeira">
+                <NativeSelect value={brand} onChange={(e) => setBrand(e.target.value as CardBrand)}>
+                  <option value="mastercard">Mastercard</option>
+                  <option value="visa">Visa</option>
+                  <option value="elo">Elo</option>
+                  <option value="amex">Amex</option>
+                  <option value="hipercard">Hipercard</option>
+                  <option value="outra">Outra</option>
+                </NativeSelect>
+              </Field>
+              <Field label="Final (opcional)" htmlFor="card-last4">
+                <Input
+                  id="card-last4"
+                  inputMode="numeric"
+                  value={last4}
+                  onChange={(e) => setLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="1234"
+                />
+              </Field>
             </div>
-          </Field>
+            <Field label="Cor do cartão">
+              <div className="flex flex-wrap gap-1.5">
+                {COLORS.map((c) => (
+                  <button
+                    key={c || "oficial"}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    aria-pressed={color === c}
+                    aria-label={c ? `Cor ${c}` : "Cor oficial do banco"}
+                    title={c ? undefined : "Cor oficial do banco"}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full text-[9px] font-bold text-white ring-offset-2 ring-offset-background transition",
+                      color === c && "ring-2 ring-primary",
+                    )}
+                    style={{ background: c || `linear-gradient(135deg, ${bank.gradient[0]}, ${bank.gradient[1]})` }}
+                  >
+                    {c ? "" : "OF"}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          </DialogColumn>
+
+          <DialogColumn>
+            <Field label="Banco">
+              <BankPicker value={bankSlug} onChange={setBankSlug} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nome do cartão" htmlFor="card-name">
+                <Input id="card-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={`Cartão ${bank.name}`} maxLength={40} />
+              </Field>
+              <Field label="Limite total">
+                <MoneyInput value={limit} onChange={setLimit} />
+              </Field>
+              <Field label="Fecha no dia" hint="Melhor dia de compra">
+                <NativeSelect value={closingDay} onChange={(e) => setClosingDay(Number(e.target.value))}>
+                  {DAYS.map((d) => (
+                    <option key={d} value={d}>
+                      Dia {d}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field label="Vence no dia">
+                <NativeSelect value={dueDay} onChange={(e) => setDueDay(Number(e.target.value))}>
+                  {DAYS.map((d) => (
+                    <option key={d} value={d}>
+                      Dia {d}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </Field>
+            </div>
+          </DialogColumn>
         </DialogBody>
         <DialogFooter>
           {editing ? (

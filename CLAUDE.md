@@ -22,7 +22,7 @@ App de finanças pessoais (pt-BR): cartões e assinaturas por banco, gastos diá
 ## Dados (Firestore: `users/{uid}/{coleção}/{id}`)
 `accounts`, `cards`, `subscriptions`, `transactions`, `goals` — tipos em `src/lib/types.ts`,
 saneamento em `src/lib/backup.ts`, regras em `firestore.rules` (cada usuário só acessa os próprios dados).
-Modo local (sem conta) guarda tudo no `localStorage` (`src/lib/local-store.ts`).
+Só login com Google. Tutorial (src/context/tutorial-context.tsx) usa dados de exemplo só em memória (sandbox); estado do tutorial/checklist fica em users/{uid}. Em dev há login de teste em memória.
 
 ## Regras de negócio (src/lib/finance.ts, cards.ts, goals.ts)
 - Assinaturas: equivalente mensal = valor ÷ meses do ciclo (anual ÷ 12).
